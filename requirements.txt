@@ -2,4 +2,4 @@ matplotlib
 pandas
 azure-cognitiveservices-speech
 python-dotenv
-# moviepy removed, not needed when using ffmpeg
+openai

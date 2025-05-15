@@ -46,24 +46,6 @@ def extract_audio_from_video(video_path, audio_path):
         logging.error(f"Failed to extract audio from {video_path} using ffmpeg: {e}")
         raise
 
-def transcribe_audio(audio_path, speech_key, speech_endpoint):
-    try:
-        speech_config = speechsdk.SpeechConfig(subscription=speech_key, endpoint=speech_endpoint)
-        audio_input = speechsdk.AudioConfig(filename=audio_path)
-        speech_recognizer = speechsdk.SpeechRecognizer(speech_config=speech_config, audio_config=audio_input)
-        result = speech_recognizer.recognize_once()
-        if result.reason == speechsdk.ResultReason.RecognizedSpeech:
-            return result.text
-        elif result.reason == speechsdk.ResultReason.NoMatch:
-            logging.warning(f"No speech could be recognized in {audio_path}.")
-            return ""
-        else:
-            logging.error(f"Speech recognition failed: {result.reason}")
-            return ""
-    except Exception as e:
-        logging.error(f"Error during transcription: {e}")
-        return ""
-
 def transcribe_audio_with_word_timestamps(audio_path, speech_key, speech_endpoint):
     """
     Transcribes audio and returns a list of (start_time, end_time, text) tuples for each word
