@@ -208,6 +208,10 @@ def match_selling_points_with_timestamps(word_segments, selling_points):
     # Create a lowercase version of word_segments for case-insensitive matching
     word_data = [(start, end, word.lower()) for start, end, word in word_segments]
     
+    # Track which words have already been matched
+    matched_positions = [False] * len(word_data)
+    
+    # Process selling points in order (we'll sort by timestamp at the end)
     for selling_point in selling_points:
         # Split the selling point into individual words and convert to lowercase
         point_words = selling_point.lower().split()
@@ -218,44 +222,103 @@ def match_selling_points_with_timestamps(word_segments, selling_points):
             
         start_time = None
         end_time = None
+        matched_indices = []
         
-        # Find consecutive sequences of words that match the selling point
+        # First pass: try to find a match using only unmatched words
         for i in range(len(word_data)):
+            # Skip if this position is already matched or if there aren't enough words left
+            if matched_positions[i] or i + len(point_words) > len(word_data):
+                continue
+                
             matched_words = 0
+            curr_indices = []
+            
             for j in range(len(point_words)):
-                if i + j >= len(word_data):
+                if i + j >= len(word_data) or matched_positions[i + j]:
                     break
                 
                 # Check if the current word in the transcription matches the current word in the selling point
                 # Allow partial matches (e.g., "7/8" might be transcribed as "seven eighths")
                 if word_data[i + j][2] in point_words[j] or point_words[j] in word_data[i + j][2]:
                     matched_words += 1
+                    curr_indices.append(i + j)
                 else:
                     break
             
             # If we have a match for all words or a significant portion
             if matched_words >= max(1, len(point_words) // 2):
                 # Set start time from the first matched word
-                if start_time is None:
-                    start_time = word_data[i][0]
+                start_time = word_data[i][0]
                 
                 # Update end time with the last matched word
                 end_time = word_data[i + matched_words - 1][1]
+                matched_indices = curr_indices
                 
                 # For longer selling points, try to find matches for remaining words
                 remaining_point_words = " ".join(point_words[matched_words:])
                 if remaining_point_words:
                     for k in range(i + matched_words, len(word_data)):
+                        if matched_positions[k]:
+                            continue
+                            
                         if word_data[k][2] in remaining_point_words or any(pw in word_data[k][2] for pw in point_words[matched_words:]):
                             end_time = word_data[k][1]
+                            matched_indices.append(k)
+                
+                # We found a match, so break out of the loop
+                break
         
-        # If we found timestamps, add to results
+        # Second pass: if no match found in unmatched regions, try anywhere
+        if start_time is None:
+            for i in range(len(word_data)):
+                # Skip if there aren't enough words left
+                if i + len(point_words) > len(word_data):
+                    continue
+                    
+                matched_words = 0
+                curr_indices = []
+                
+                for j in range(len(point_words)):
+                    if i + j >= len(word_data):
+                        break
+                    
+                    # Check if current word matches
+                    if word_data[i + j][2] in point_words[j] or point_words[j] in word_data[i + j][2]:
+                        matched_words += 1
+                        curr_indices.append(i + j)
+                    else:
+                        break
+                
+                # If we have a match
+                if matched_words >= max(1, len(point_words) // 2):
+                    # Set start time from the first matched word
+                    start_time = word_data[i][0]
+                    
+                    # Update end time with the last matched word
+                    end_time = word_data[i + matched_words - 1][1]
+                    matched_indices = curr_indices
+                    
+                    # For longer selling points, try to find matches for remaining words
+                    remaining_point_words = " ".join(point_words[matched_words:])
+                    if remaining_point_words:
+                        for k in range(i + matched_words, len(word_data)):
+                            if word_data[k][2] in remaining_point_words or any(pw in word_data[k][2] for pw in point_words[matched_words:]):
+                                end_time = word_data[k][1]
+                                matched_indices.append(k)
+                    
+                    break
+        
+        # If we found timestamps, add to results and mark words as matched
         if start_time is not None and end_time is not None:
             result.append({
                 "startTime": round(start_time, 2),
                 "endTime": round(end_time, 2),
                 "content": selling_point
             })
+            
+            # Mark the matched positions as used
+            for idx in matched_indices:
+                matched_positions[idx] = True
         else:
             # If no match was found, include the selling point without timestamps
             result.append({
@@ -264,9 +327,12 @@ def match_selling_points_with_timestamps(word_segments, selling_points):
                 "content": selling_point
             })
     
+    # Sort results by start time (None values at the end)
+    result.sort(key=lambda x: (x["startTime"] is None, x["startTime"]))
+    
     return result
 
-def merge_segments_by_selling_points(content_json, selling_points_json, time_deviation_ms=200):
+def merge_segments_by_selling_points(content_json, selling_points_json, time_deviation_ms=0):
     """
     Merge video segments based on selling points timestamps with optional time deviation
     
@@ -276,11 +342,12 @@ def merge_segments_by_selling_points(content_json, selling_points_json, time_dev
         time_deviation_ms: Time deviation in milliseconds to allow for overlap matching (default: 200ms)
     
     Returns:
-        Dictionary with merged segments and unmerged content
+        Dictionary with merged segments, final segments and unmerged content
     """
     result = {
         "merged_segments": [],
-        "unmerged_segments": []
+        "unmerged_segments": [],
+        "final_segments": []
     }
     
     # Get video segments from content understanding output
@@ -342,11 +409,38 @@ def merge_segments_by_selling_points(content_json, selling_points_json, time_dev
                 "description": segment["fields"].get("description", {}).get("valueString", "")
             })
     
+    # Create final segments from merged segments with overlapping segments
+    for merged_segment in result["merged_segments"]:
+        if merged_segment["overlapping_segments"]:
+            # Get startTimeMs from first overlapping segment
+            start_time_ms = merged_segment["overlapping_segments"][0]["startTimeMs"]
+            
+            # Get endTimeMs from last overlapping segment
+            end_time_ms = merged_segment["overlapping_segments"][-1]["endTimeMs"]
+            
+            # Create final segment
+            final_segment = {
+                "startTimeMs": start_time_ms,
+                "endTimeMs": end_time_ms,
+                "sellingPoint": merged_segment["content"]
+            }
+            
+            result["final_segments"].append(final_segment)
+    
+    # Add all unmerged segments to final_segments as well
+    for unmerged_segment in result["unmerged_segments"]:
+        final_segment = {
+            "startTimeMs": unmerged_segment["startTimeMs"],
+            "endTimeMs": unmerged_segment["endTimeMs"],
+            "sellingPoint": unmerged_segment["sellingPoint"]
+        }
+        result["final_segments"].append(final_segment)
+    
     return result
 
 def visualize_segments(content_json, selling_points_json, merged_segments, output_path=None):
     """
-    Visualize the original video segments, selling points, and merged segments
+    Visualize the original video segments, selling points, merged segments, and final segments
     
     Args:
         content_json: Original content understanding output JSON
@@ -375,7 +469,8 @@ def visualize_segments(content_json, selling_points_json, merged_segments, outpu
             'original': 'lightblue',
             'merged': 'lightgreen',
             'unmerged': 'lightgray',
-            'selling_point': 'coral'
+            'selling_point': 'coral',
+            'final_segment': 'purple'  # New color for final segments
         }
         
         # Track y position for plotting
@@ -415,9 +510,8 @@ def visualize_segments(content_json, selling_points_json, merged_segments, outpu
         
         # Add space between sections
         y_pos += y_gap
-        section_start_y = y_pos
         
-        # Plot section titles
+        # Plot section titles for selling points
         ax.text(-max_time_ms * 0.05, y_pos + y_height/2, "Selling Points", 
                 fontsize=10, va='center', ha='right', fontweight='bold')
         
@@ -445,7 +539,7 @@ def visualize_segments(content_json, selling_points_json, merged_segments, outpu
         # Add space between sections
         y_pos += y_gap
         
-        # Plot section titles
+        # Plot section titles for merged segments
         ax.text(-max_time_ms * 0.05, y_pos + y_height/2, "Merged Segments", 
                 fontsize=10, va='center', ha='right', fontweight='bold')
         
@@ -484,6 +578,32 @@ def visualize_segments(content_json, selling_points_json, merged_segments, outpu
                         ha='left', va='center', fontsize=8, style='italic')
             
             y_pos += y_gap
+            
+        # Add space between sections
+        y_pos += y_gap
+        
+        # Plot section titles for final segments
+        ax.text(-max_time_ms * 0.05, y_pos + y_height/2, "Final Segments", 
+                fontsize=10, va='center', ha='right', fontweight='bold')
+        
+        # Plot final segments
+        for final_segment in merged_segments["final_segments"]:
+            start = final_segment["startTimeMs"]
+            end = final_segment["endTimeMs"]
+            
+            # Draw the segment as a rectangle
+            rect = patches.Rectangle((start, y_pos), end - start, y_height, 
+                                    facecolor=colors['final_segment'], edgecolor='black', alpha=0.7)
+            ax.add_patch(rect)
+            
+            # Add segment label
+            selling_point = final_segment["sellingPoint"]
+            if selling_point:
+                display_text = selling_point[:20] + "..." if len(selling_point) > 20 else selling_point
+                ax.text((start + end) / 2, y_pos + y_height/2, display_text, 
+                        ha='center', va='center', fontsize=8)
+            
+            y_pos += y_gap
         
         # Set axis limits and labels
         ax.set_xlim(-max_time_ms * 0.05, max_time_ms * 1.05)
@@ -498,7 +618,8 @@ def visualize_segments(content_json, selling_points_json, merged_segments, outpu
         legend_elements = [
             patches.Patch(facecolor=colors['unmerged'], edgecolor='black', alpha=0.7, label='Unmerged segment'),
             patches.Patch(facecolor=colors['merged'], edgecolor='black', alpha=0.7, label='Merged segment'),
-            patches.Patch(facecolor=colors['selling_point'], edgecolor='black', alpha=0.7, label='Selling point')
+            patches.Patch(facecolor=colors['selling_point'], edgecolor='black', alpha=0.7, label='Selling point'),
+            patches.Patch(facecolor=colors['final_segment'], edgecolor='black', alpha=0.7, label='Final segment')
         ]
         ax.legend(handles=legend_elements, loc='upper right')
         
