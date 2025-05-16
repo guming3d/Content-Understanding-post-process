@@ -31,7 +31,7 @@ from transcribe_videos import (
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s')
 
 # Load environment variables
-load_dotenv()
+load_dotenv(override=True)
 SPEECH_KEY = os.getenv('AZURE_SPEECH_KEY')
 SPEECH_ENDPOINT = os.getenv('AZURE_SPEECH_ENDPOINT')
 OPENAI_API_KEY = os.getenv('AZURE_OPENAI_API_KEY')
@@ -72,26 +72,7 @@ def extract_selling_points(transcription_text):
             azure_endpoint=OPENAI_ENDPOINT
         )
 
-        # Prepare the prompt
         prompt = f"""
-        Extract the unique selling points from the following transcription. 
-        Use exactly the same words as they appear in the transcription.
-        Only include clear selling points, features, or benefits mentioned.
-        Format each point as a separate item in a JSON array.
-        
-        Transcription:
-        {transcription_text}
-        """
-
-        prompt2 = f"""
-        Analyze this transcript, and list out the individual selling points mentioned in the transcript, the selling points should be short and consice.
-        Format each point as a separate item in a JSON array.
-                
-        Transcription:
-        {transcription_text}
-        """
-
-        prompt3 = f"""
         {transcription_text}
         """
         
@@ -105,12 +86,12 @@ def extract_selling_points(transcription_text):
             messages=[
             # {"role": "system", "content": "You are an AI assistant that extracts selling points from transcriptions."},
             {"role": "system", "content": """
-Your task is to analyze video transcript and extract the unique and individual selling points mentioned in the transcript. Only list the selling points, no other explanation need to be provided. Format each point as a separate item in a JSON array.
-Make sure the selling points word is exactly the same as they appear in the transcript.
+Your task is to analyze video transcript and extract the unique and individual selling points mentioned in the transcript. Only list the selling points, no other explanation need to be provided. Pur each selling point as a separate item in a JSON array.
+Make sure the selling points word is exactly the same as they appear in the transcript. Long transcript sentences can be broken down into multiple selling points.
  
 Here is a list of sample selling point for your reference:
+
 Selling Points list:
- 
 Magical pockets set me free!
 They come in multiple colors. 
 So soft and super stretchy
@@ -191,15 +172,18 @@ U-neck racerback
  
 New selling points may be mentioned in the transcript that are not included in the list above. In this case, use your best judgement.
              """},
-            {"role": "user", "content": prompt3}
+            {"role": "user", "content": prompt}
             ],
-            temperature=0.7,
-            max_tokens=approx_tokens,
+            temperature=0.2,
+            # max_tokens=approx_tokens,
+            max_tokens=200,
+            top_p=1,
             response_format={"type": "json_object"}
         )
 
         # Parse the response
         content = response.choices[0].message.content
+        print(content)
         selling_points = json.loads(content).get("selling_points", [])
         
         return selling_points
@@ -282,6 +266,256 @@ def match_selling_points_with_timestamps(word_segments, selling_points):
     
     return result
 
+def merge_segments_by_selling_points(content_json, selling_points_json, time_deviation_ms=200):
+    """
+    Merge video segments based on selling points timestamps with optional time deviation
+    
+    Args:
+        content_json: Content understanding output JSON
+        selling_points_json: Selling points with timestamps JSON
+        time_deviation_ms: Time deviation in milliseconds to allow for overlap matching (default: 200ms)
+    
+    Returns:
+        Dictionary with merged segments and unmerged content
+    """
+    result = {
+        "merged_segments": [],
+        "unmerged_segments": []
+    }
+    
+    # Get video segments from content understanding output
+    video_segments = content_json["result"]["contents"]
+    
+    # Track which segments have been merged
+    merged_segment_indices = set()
+    
+    # Process each selling point
+    for selling_point in selling_points_json["selling_points"]:
+        # Skip if no timestamps
+        if selling_point["startTime"] is None or selling_point["endTime"] is None:
+            # Add to result as a selling point without timestamp information
+            result["merged_segments"].append({
+                "startTimeMs": None,
+                "endTimeMs": None,
+                "content": selling_point["content"],
+                "overlapping_segments": []
+            })
+            logging.info(f"Skipping timing match for selling point without timestamps: {selling_point['content']}")
+            continue
+        
+        # Convert to milliseconds for comparison
+        start_time_ms = int(selling_point["startTime"] * 1000)
+        end_time_ms = int(selling_point["endTime"] * 1000)
+        
+        # Find overlapping segments with time deviation
+        overlapping_segments = []
+        for i, segment in enumerate(video_segments):
+            # Check if segments overlap with time deviation
+            if (segment["startTimeMs"] <= (end_time_ms + time_deviation_ms) and 
+                segment["endTimeMs"] >= (start_time_ms - time_deviation_ms)):
+                overlapping_segments.append({
+                    "startTimeMs": segment["startTimeMs"],
+                    "endTimeMs": segment["endTimeMs"],
+                    "sellingPoint": segment["fields"].get("sellingPoint", {}).get("valueString", ""),
+                    "description": segment["fields"].get("description", {}).get("valueString", "")
+                })
+                # Mark this segment as merged
+                merged_segment_indices.add(i)
+        
+        # Create merged segment
+        merged_segment = {
+            "startTimeMs": start_time_ms,
+            "endTimeMs": end_time_ms,
+            "content": selling_point["content"],
+            "overlapping_segments": overlapping_segments
+        }
+        
+        result["merged_segments"].append(merged_segment)
+    
+    # Only include segments that weren't merged in the unmerged_segments list
+    for i, segment in enumerate(video_segments):
+        if i not in merged_segment_indices:
+            result["unmerged_segments"].append({
+                "startTimeMs": segment["startTimeMs"],
+                "endTimeMs": segment["endTimeMs"],
+                "sellingPoint": segment["fields"].get("sellingPoint", {}).get("valueString", ""),
+                "description": segment["fields"].get("description", {}).get("valueString", "")
+            })
+    
+    return result
+
+def visualize_segments(content_json, selling_points_json, merged_segments, output_path=None):
+    """
+    Visualize the original video segments, selling points, and merged segments
+    
+    Args:
+        content_json: Original content understanding output JSON
+        selling_points_json: Selling points with timestamps JSON
+        merged_segments: Result from merge_segments_by_selling_points
+        output_path: Path to save the visualization (if None, display instead)
+    """
+    try:
+        import matplotlib.pyplot as plt
+        import matplotlib.patches as patches
+        import numpy as np
+        from matplotlib.lines import Line2D
+        
+        # Get video segments
+        video_segments = content_json["result"]["contents"]
+        selling_points = selling_points_json["selling_points"]
+        
+        # Calculate time range for the plot
+        max_time_ms = max([segment["endTimeMs"] for segment in video_segments])
+        
+        # Set up the figure and axes
+        fig, ax = plt.subplots(figsize=(15, 8))
+        
+        # Define colors
+        colors = {
+            'original': 'lightblue',
+            'merged': 'lightgreen',
+            'unmerged': 'lightgray',
+            'selling_point': 'coral'
+        }
+        
+        # Track y position for plotting
+        y_pos = 0
+        y_height = 0.8
+        y_gap = 1.5
+        
+        # Plot section titles
+        ax.text(-max_time_ms * 0.05, y_pos + y_height/2, "Video Segments", 
+                fontsize=10, va='center', ha='right', fontweight='bold')
+        
+        # Plot original video segments
+        for i, segment in enumerate(video_segments):
+            start = segment["startTimeMs"]
+            end = segment["endTimeMs"]
+            label = segment["fields"].get("sellingPoint", {}).get("valueString", "")
+            
+            # Check if this segment was merged
+            was_merged = any(i for merged_segment in merged_segments["merged_segments"] 
+                           if merged_segment["overlapping_segments"] and 
+                           any(os["startTimeMs"] == segment["startTimeMs"] and os["endTimeMs"] == segment["endTimeMs"] 
+                              for os in merged_segment["overlapping_segments"]))
+            
+            color = colors['merged'] if was_merged else colors['unmerged']
+            
+            # Draw the segment as a rectangle
+            rect = patches.Rectangle((start, y_pos), end - start, y_height, 
+                                    facecolor=color, edgecolor='black', alpha=0.7)
+            ax.add_patch(rect)
+            
+            # Add segment label
+            if label:
+                ax.text((start + end) / 2, y_pos + y_height/2, label, 
+                        ha='center', va='center', fontsize=8)
+            
+            y_pos += y_gap
+        
+        # Add space between sections
+        y_pos += y_gap
+        section_start_y = y_pos
+        
+        # Plot section titles
+        ax.text(-max_time_ms * 0.05, y_pos + y_height/2, "Selling Points", 
+                fontsize=10, va='center', ha='right', fontweight='bold')
+        
+        # Plot selling points with timestamps
+        for point in selling_points:
+            if point["startTime"] is not None and point["endTime"] is not None:
+                start = int(point["startTime"] * 1000)
+                end = int(point["endTime"] * 1000)
+                
+                # Draw the segment as a rectangle
+                rect = patches.Rectangle((start, y_pos), end - start, y_height, 
+                                        facecolor=colors['selling_point'], edgecolor='black', alpha=0.7)
+                ax.add_patch(rect)
+                
+                # Add segment label
+                ax.text((start + end) / 2, y_pos + y_height/2, point["content"][:20] + "...", 
+                        ha='center', va='center', fontsize=8)
+            else:
+                # For selling points without timestamps
+                ax.text(0, y_pos + y_height/2, f"No timestamp: {point['content'][:20]}...", 
+                        ha='left', va='center', fontsize=8, style='italic')
+            
+            y_pos += y_gap
+        
+        # Add space between sections
+        y_pos += y_gap
+        
+        # Plot section titles
+        ax.text(-max_time_ms * 0.05, y_pos + y_height/2, "Merged Segments", 
+                fontsize=10, va='center', ha='right', fontweight='bold')
+        
+        # Plot merged segments
+        for merged_segment in merged_segments["merged_segments"]:
+            if merged_segment["startTimeMs"] is not None and merged_segment["endTimeMs"] is not None:
+                start = merged_segment["startTimeMs"]
+                end = merged_segment["endTimeMs"]
+                
+                # Draw the segment as a rectangle
+                rect = patches.Rectangle((start, y_pos), end - start, y_height, 
+                                        facecolor=colors['selling_point'], edgecolor='black', alpha=0.7)
+                ax.add_patch(rect)
+                
+                # Add segment label
+                ax.text((start + end) / 2, y_pos + y_height/2, merged_segment["content"][:20] + "...", 
+                        ha='center', va='center', fontsize=8)
+                
+                # Draw lines connecting to original segments
+                for overlap in merged_segment["overlapping_segments"]:
+                    # Find index of the original segment
+                    for i, segment in enumerate(video_segments):
+                        if segment["startTimeMs"] == overlap["startTimeMs"] and segment["endTimeMs"] == overlap["endTimeMs"]:
+                            # Draw a line from this merged segment to the original segment
+                            original_y = i * y_gap + y_height/2
+                            merged_y = y_pos + y_height/2
+                            
+                            mid_x = (overlap["startTimeMs"] + overlap["endTimeMs"]) / 2;
+                            
+                            ax.add_line(Line2D([mid_x, mid_x], [original_y, merged_y], 
+                                              color='black', linestyle='--', alpha=0.5))
+                            break
+            else:
+                # For selling points without timestamps
+                ax.text(0, y_pos + y_height/2, f"No matches: {merged_segment['content'][:20]}...", 
+                        ha='left', va='center', fontsize=8, style='italic')
+            
+            y_pos += y_gap
+        
+        # Set axis limits and labels
+        ax.set_xlim(-max_time_ms * 0.05, max_time_ms * 1.05)
+        ax.set_ylim(-y_gap, y_pos + y_gap)
+        ax.set_xlabel('Time (ms)')
+        ax.set_title('Video Segment Merging Visualization')
+        
+        # Remove y-axis ticks and labels
+        ax.set_yticks([])
+        
+        # Add legend
+        legend_elements = [
+            patches.Patch(facecolor=colors['unmerged'], edgecolor='black', alpha=0.7, label='Unmerged segment'),
+            patches.Patch(facecolor=colors['merged'], edgecolor='black', alpha=0.7, label='Merged segment'),
+            patches.Patch(facecolor=colors['selling_point'], edgecolor='black', alpha=0.7, label='Selling point')
+        ]
+        ax.legend(handles=legend_elements, loc='upper right')
+        
+        # Save or display the plot
+        if output_path:
+            plt.tight_layout()
+            plt.savefig(output_path)
+            logging.info(f"Visualization saved to {output_path}")
+        else:
+            plt.tight_layout()
+            plt.show()
+            
+    except ImportError:
+        logging.warning("Matplotlib not installed. Visualization skipped.")
+    except Exception as e:
+        logging.error(f"Error creating visualization: {e}")
+
 def process_video(video_path):
     """
     Process a single video file:
@@ -290,6 +524,8 @@ def process_video(video_path):
     3. Extract selling points from sentence transcription
     4. Match selling points with timestamps 
     5. Save results
+    6. Merge video segments based on selling points
+    7. Visualize the merging (optional)
     
     Args:
         video_path (str): Path to the video file
@@ -298,6 +534,9 @@ def process_video(video_path):
     word_txt_path = base + "_word.txt"
     sentence_txt_path = base + "_sentence.txt"
     selling_points_path = base + "_selling_points.json"
+    merged_segments_path = base + "_merged_segments.json"
+    visualization_path = base + "_segments_visualization.png"
+    content_json_path = video_path + ".json"  # Assuming content understanding output is named as video_name.mp4.json
     audio_path = base + ".wav"  # Temporary audio file
     
     logging.info(f"Processing {video_path} ...")
@@ -335,6 +574,30 @@ def process_video(video_path):
         with open(selling_points_path, "w", encoding="utf-8") as f:
             json.dump({"selling_points": timestamped_selling_points}, f, indent=2)
         logging.info(f"Selling points with timestamps saved to {selling_points_path}")
+        
+        # Step 7: Merge video segments based on selling points if content JSON exists
+        if os.path.exists(content_json_path):
+            try:
+                with open(content_json_path, 'r') as f:
+                    content_json = json.load(f)
+                
+                with open(selling_points_path, 'r') as f:
+                    selling_points_json = json.load(f)
+                
+                merged_segments = merge_segments_by_selling_points(content_json, selling_points_json)
+                
+                with open(merged_segments_path, 'w') as f:
+                    json.dump(merged_segments, f, indent=2)
+                
+                logging.info(f"Merged segments saved to {merged_segments_path}")
+                
+                # Step 8: Create visualization
+                visualize_segments(content_json, selling_points_json, merged_segments, visualization_path)
+                
+            except Exception as e:
+                logging.error(f"Failed to merge video segments: {e}")
+        else:
+            logging.warning(f"Content understanding output file {content_json_path} not found. Skipping segment merging.")
         
     except Exception as e:
         logging.error(f"Failed to process {video_path}: {e}")
