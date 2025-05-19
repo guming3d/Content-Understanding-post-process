@@ -494,6 +494,11 @@ def visualize_segments(content_json, selling_points_json, merged_segments, outpu
             'final_segment': 'purple'  # New color for final segments
         }
         
+        # Define formatting function for timestamps
+        def format_timestamp(ms):
+            seconds = ms / 1000
+            return f"{seconds:.2f}s"
+        
         # Track y position for plotting
         y_pos = 0
         y_height = 0.8
@@ -522,6 +527,12 @@ def visualize_segments(content_json, selling_points_json, merged_segments, outpu
                                     facecolor=color, edgecolor='black', alpha=0.7)
             ax.add_patch(rect)
             
+            # Add timestamp labels at boundaries
+            ax.text(start, y_pos - 0.2, format_timestamp(start), 
+                    ha='center', va='top', fontsize=7, rotation=45)
+            ax.text(end, y_pos - 0.2, format_timestamp(end), 
+                    ha='center', va='top', fontsize=7, rotation=45)
+            
             # Add segment label
             if label:
                 ax.text((start + end) / 2, y_pos + y_height/2, label, 
@@ -546,6 +557,12 @@ def visualize_segments(content_json, selling_points_json, merged_segments, outpu
                 rect = patches.Rectangle((start, y_pos), end - start, y_height, 
                                         facecolor=colors['selling_point'], edgecolor='black', alpha=0.7)
                 ax.add_patch(rect)
+                
+                # Add timestamp labels at boundaries
+                ax.text(start, y_pos - 0.2, format_timestamp(start), 
+                        ha='center', va='top', fontsize=7, rotation=45)
+                ax.text(end, y_pos - 0.2, format_timestamp(end), 
+                        ha='center', va='top', fontsize=7, rotation=45)
                 
                 # Add segment label
                 ax.text((start + end) / 2, y_pos + y_height/2, point["content"][:20] + "...", 
@@ -574,6 +591,12 @@ def visualize_segments(content_json, selling_points_json, merged_segments, outpu
                 rect = patches.Rectangle((start, y_pos), end - start, y_height, 
                                         facecolor=colors['selling_point'], edgecolor='black', alpha=0.7)
                 ax.add_patch(rect)
+                
+                # Add timestamp labels at boundaries
+                ax.text(start, y_pos - 0.2, format_timestamp(start), 
+                        ha='center', va='top', fontsize=7, rotation=45)
+                ax.text(end, y_pos - 0.2, format_timestamp(end), 
+                        ha='center', va='top', fontsize=7, rotation=45)
                 
                 # Add segment label
                 ax.text((start + end) / 2, y_pos + y_height/2, merged_segment["content"][:20] + "...", 
@@ -616,6 +639,12 @@ def visualize_segments(content_json, selling_points_json, merged_segments, outpu
             rect = patches.Rectangle((start, y_pos), end - start, y_height, 
                                     facecolor=colors['final_segment'], edgecolor='black', alpha=0.7)
             ax.add_patch(rect)
+            
+            # Add timestamp labels at boundaries
+            ax.text(start, y_pos - 0.2, format_timestamp(start), 
+                    ha='center', va='top', fontsize=7, rotation=45)
+            ax.text(end, y_pos - 0.2, format_timestamp(end), 
+                    ha='center', va='top', fontsize=7, rotation=45)
             
             # Add segment label
             selling_point = final_segment["sellingPoint"]

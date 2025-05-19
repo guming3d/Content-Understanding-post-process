@@ -108,7 +108,7 @@ def transcribe_audio_with_sentence_timestamps(audio_path, speech_key, speech_end
                         words = n['Words']
                         start_time = words[0]['Offset'] / 10000000.0
                         end_time = (words[-1]['Offset'] + words[-1]['Duration']) / 10000000.0
-                        sentence_text = n.get('Display', n.get('Lexical', '')) # Get sentence text
+                        sentence_text = n.get('Lexical', '') # Get sentence text
                         results.append((start_time, end_time, sentence_text))
         recognizer.recognized.connect(handle_final)
         recognizer.session_stopped.connect(lambda evt: setattr(recognizer, 'done', True))
