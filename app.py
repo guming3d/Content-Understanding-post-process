@@ -332,14 +332,15 @@ def match_selling_points_with_timestamps(word_segments, selling_points):
     
     return result
 
-def merge_segments_by_selling_points(content_json, selling_points_json, time_deviation_ms=0):
+def merge_segments_by_selling_points(content_json, selling_points_json, time_deviation_ms=0, min_overlap_percentage=0.2):
     """
     Merge video segments based on selling points timestamps with optional time deviation
     
     Args:
         content_json: Content understanding output JSON
         selling_points_json: Selling points with timestamps JSON
-        time_deviation_ms: Time deviation in milliseconds to allow for overlap matching (default: 200ms)
+        time_deviation_ms: Time deviation in milliseconds to allow for overlap matching (default: 0ms)
+        min_overlap_percentage: Minimum percentage of overlap required (0.0-1.0) to consider a match (default: 0.2)
     
     Returns:
         Dictionary with merged segments, final segments and unmerged content
@@ -373,21 +374,41 @@ def merge_segments_by_selling_points(content_json, selling_points_json, time_dev
         # Convert to milliseconds for comparison
         start_time_ms = int(selling_point["startTime"] * 1000)
         end_time_ms = int(selling_point["endTime"] * 1000)
+        selling_point_duration = end_time_ms - start_time_ms
         
         # Find overlapping segments with time deviation
         overlapping_segments = []
         for i, segment in enumerate(video_segments):
             # Check if segments overlap with time deviation
-            if (segment["startTimeMs"] <= (end_time_ms + time_deviation_ms) and 
-                segment["endTimeMs"] >= (start_time_ms - time_deviation_ms)):
-                overlapping_segments.append({
-                    "startTimeMs": segment["startTimeMs"],
-                    "endTimeMs": segment["endTimeMs"],
-                    "sellingPoint": segment["fields"].get("sellingPoint", {}).get("valueString", ""),
-                    "description": segment["fields"].get("description", {}).get("valueString", "")
-                })
-                # Mark this segment as merged
-                merged_segment_indices.add(i)
+            segment_start = segment["startTimeMs"]
+            segment_end = segment["endTimeMs"]
+            segment_duration = segment_end - segment_start
+            
+            # Calculate overlap
+            overlap_start = max(segment_start, start_time_ms - time_deviation_ms)
+            overlap_end = min(segment_end, end_time_ms + time_deviation_ms)
+            
+            if overlap_start < overlap_end:  # There is some overlap
+                # Calculate overlap duration
+                overlap_duration = overlap_end - overlap_start
+                
+                # Calculate overlap percentage relative to the shorter duration
+                shorter_duration = min(segment_duration, selling_point_duration)
+                overlap_percentage = overlap_duration / shorter_duration
+                
+                # Only consider as overlapping if percentage is above threshold
+                if overlap_percentage >= min_overlap_percentage:
+                    overlapping_segments.append({
+                        "startTimeMs": segment["startTimeMs"],
+                        "endTimeMs": segment["endTimeMs"],
+                        "sellingPoint": segment["fields"].get("sellingPoint", {}).get("valueString", ""),
+                        "description": segment["fields"].get("description", {}).get("valueString", "")
+                    })
+                    # Mark this segment as merged
+                    merged_segment_indices.add(i)
+                    logging.info(f"Merged segment {i} with selling point '{selling_point['content']}', overlap: {overlap_percentage:.2f}")
+                else:
+                    logging.info(f"Skipped merging segment {i} with selling point '{selling_point['content']}', insufficient overlap: {overlap_percentage:.2f}")
         
         # Create merged segment
         merged_segment = {
@@ -705,7 +726,10 @@ def process_video(video_path):
                 with open(selling_points_path, 'r') as f:
                     selling_points_json = json.load(f)
                 
-                merged_segments = merge_segments_by_selling_points(content_json, selling_points_json)
+                # Using min_overlap_percentage of 0.2 (20%) to avoid merging segments with minimal overlap
+                merged_segments = merge_segments_by_selling_points(content_json, selling_points_json, 
+                                                                  time_deviation_ms=0, 
+                                                                  min_overlap_percentage=0.2)
                 
                 with open(merged_segments_path, 'w') as f:
                     json.dump(merged_segments, f, indent=2)
@@ -730,6 +754,7 @@ def process_video(video_path):
                 logging.info(f"Temporary audio file {audio_path} removed.")
             except Exception as e:
                 logging.warning(f"Could not remove temporary audio file {audio_path}: {e}")
+
 
 def main():
     """
