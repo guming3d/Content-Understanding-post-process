@@ -8,6 +8,7 @@
 - FFmpeg 已安装并在系统路径 (PATH) 中可用
 - Azure 语音服务订阅（密钥和终结点）
 - Azure OpenAI 服务订阅（API 密钥、终结点、API 版本、部署名称）
+- Node.js 和 npm（用于运行前端可视化）
 
 ## 安装设置
 
@@ -24,6 +25,12 @@
    AZURE_OPENAI_API_VERSION=your_azure_openai_api_version_here
    AZURE_OPENAI_ENDPOINT=your_azure_openai_endpoint_here
    AZURE_OPENAI_DEPLOYMENT=your_azure_openai_deployment_name_here
+   ```
+
+3. 安装前端依赖：
+   ```zsh
+   cd frontend
+   npm install
    ```
 
 ## 后端逻辑概览
@@ -104,6 +111,36 @@ python app.py
 }
 ```
 
+## 前端可视化工具
+
+本代码库包含一个交互式的基于网络的可视化工具，用于查看和分析视频片段。
+
+### 功能特性:
+- 视频片段的交互式时间轴可视化
+- 与片段时间轴同步的视频播放器
+- 不同类型片段的颜色编码（已合并、未合并、卖点、最终片段）
+- 实时当前时间标记，带有时间戳显示
+- 选择片段时显示片段详细信息
+- 支持上传和分析您自己的视频和片段文件
+
+### 运行前端:
+
+```zsh
+cd frontend
+npm start
+```
+
+然后在浏览器中打开 `http://localhost:3000`
+
+### 使用可视化工具:
+
+1. 使用"选择视频文件"按钮选择一个视频文件
+2. 使用"选择片段 JSON 文件"按钮选择相应的 JSON 片段文件
+3. 视频将会加载，时间轴将显示所有片段类型
+4. 点击任何片段查看其在"片段详细信息"部分的详细信息
+5. 播放视频可以看到当前时间标记在时间轴上的移动
+6. 时间轴以不同颜色显示不同的片段类型（参见图例）
+
 ## 工作流程示例
 
 1. 将您的 `.mp4` 视频文件放入 `inputs/` 目录。
@@ -113,6 +150,12 @@ python app.py
    python app.py
    ```
 4. 检查 `inputs/` 目录中生成的转录文件（`_word.txt`, `_sentence.txt`）、卖点文件（`_selling_points.json`）、合并后的片段文件（`_merged_segments.json`）和可视化文件（`_segments_visualization.png`）。
+5. 启动前端可视化服务器：
+   ```zsh
+   cd frontend
+   npm start
+   ```
+6. 在浏览器中打开 `http://localhost:3000`，上传您的视频和相应的 `_merged_segments.json` 文件，以交互方式探索片段。
 
 ## 故障排除
 
@@ -121,6 +164,8 @@ python app.py
 - **未生成转录**: 检查 Azure 语音服务订阅状态和网络连接。
 - **卖点提取问题**: 验证 Azure OpenAI 凭据、部署名称和服务状态。检查 OpenAI API 返回的错误日志。
 - **片段合并失败**: 确保 `inputs/` 目录中存在针对相应视频的格式正确的 `video_name.mp4.json` 文件。
+- **前端未加载**: 检查是否已安装 npm 依赖项，以及服务器是否正确运行。
+- **前端不显示片段**: 验证 JSON 文件是否具有正确的格式，包含 `merged_segments`、`unmerged_segments` 和 `final_segments` 数组。
 
 ## 文件结构
 
@@ -131,6 +176,12 @@ python app.py
 ├── transcribe_videos.py       # 转录功能模块 (由 app.py 导入)
 ├── README.md                  # 本文档 (英文版)
 ├── README_zh.md               # 本文档 (中文版)
+├── frontend/                  # 前端可视化工具
+│   ├── index.html             # 主要 HTML 页面
+│   ├── styles.css             # CSS 样式
+│   ├── app.js                 # 前端 JavaScript
+│   ├── server.js              # 用于提供前端服务的 Express 服务器
+│   └── package.json           # Node.js 依赖项
 ├── inputs/                    # 输入视频和生成文件的目录
 │   ├── *.mp4                  # 输入视频文件
 │   ├── *.mp4.json             # (可选) 初始视频片段的输入 JSON 文件

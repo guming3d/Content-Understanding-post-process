@@ -8,6 +8,7 @@ This repository contains tools for transcribing speech from video files using Az
 - FFmpeg installed and available in PATH
 - Azure Speech Service subscription (key and endpoint)
 - Azure OpenAI Service subscription (API key, endpoint, API version, deployment name)
+- Node.js and npm (for running the frontend visualization)
 
 ## Setup
 
@@ -24,6 +25,12 @@ This repository contains tools for transcribing speech from video files using Az
    AZURE_OPENAI_API_VERSION=your_azure_openai_api_version_here
    AZURE_OPENAI_ENDPOINT=your_azure_openai_endpoint_here
    AZURE_OPENAI_DEPLOYMENT=your_azure_openai_deployment_name_here
+   ```
+
+3. Install frontend dependencies:
+   ```zsh
+   cd frontend
+   npm install
    ```
 
 ## Backend Logic Overview
@@ -104,6 +111,36 @@ Example `_selling_points.json` format:
 }
 ```
 
+## Frontend Visualization Tool
+
+The repository includes an interactive web-based visualization tool to review and analyze video segments.
+
+### Features:
+- Interactive timeline visualization of video segments
+- Video player synchronized with segment timeline
+- Color-coded segments for different types (merged, unmerged, selling point, final)
+- Real-time current time marker with timestamp display
+- Segment details display when selecting segments
+- Support for uploading and analyzing your own videos and segment files
+
+### Running the frontend:
+
+```zsh
+cd frontend
+npm start
+```
+
+Then open your browser and navigate to `http://localhost:3000`
+
+### Using the visualization tool:
+
+1. Select a video file using the "Select Video File" button
+2. Select the corresponding JSON segments file using the "Select Segments JSON File" button
+3. The video will load and the timeline will display all segment types
+4. Click on any segment to view its details in the "Segment Details" section
+5. Play the video to see the current time marker move across the timeline
+6. The timeline shows different segment types in different colors (see legend)
+
 ## Workflow Example
 
 1. Place your `.mp4` video files in the `inputs/` directory.
@@ -113,6 +150,12 @@ Example `_selling_points.json` format:
    python app.py
    ```
 4. Examine the generated transcript files (`_word.txt`, `_sentence.txt`), selling points (`_selling_points.json`), merged segments (`_merged_segments.json`), and visualizations (`_segments_visualization.png`) in the `inputs/` directory.
+5. Start the frontend visualization server:
+   ```zsh
+   cd frontend
+   npm start
+   ```
+6. Open `http://localhost:3000` in your browser and upload your video and the corresponding `_merged_segments.json` file to interactively explore the segments.
 
 ## Troubleshooting
 
@@ -121,6 +164,8 @@ Example `_selling_points.json` format:
 - **No transcriptions generated**: Check Azure Speech Service subscription status and network connectivity.
 - **Selling point extraction issues**: Verify Azure OpenAI credentials, deployment name, and service status. Check logs for errors from the OpenAI API.
 - **Segment merging not working**: Ensure a correctly formatted `video_name.mp4.json` file exists in the `inputs/` directory for the respective video.
+- **Frontend not loading**: Check that you've installed the npm dependencies and that the server is running correctly.
+- **Segments not displaying in frontend**: Verify that the JSON file has the correct format with `merged_segments`, `unmerged_segments`, and `final_segments` arrays.
 
 ## File Structure
 
@@ -130,6 +175,12 @@ Example `_selling_points.json` format:
 ├── app.py                     # Main video processing script
 ├── transcribe_videos.py       # Module for transcription functions (imported by app.py)
 ├── README.md                  # This documentation
+├── frontend/                  # Frontend visualization tool
+│   ├── index.html             # Main HTML page
+│   ├── styles.css             # CSS styles
+│   ├── app.js                 # Frontend JavaScript
+│   ├── server.js              # Express server for serving the frontend
+│   └── package.json           # Node.js dependencies
 ├── inputs/                    # Directory for input videos and generated files
 │   ├── *.mp4                  # Input video files
 │   ├── *.mp4.json             # (Optional) Input JSON for initial video segments
