@@ -1,0 +1,12 @@
+{
+  "name": "video-segment-visualization",
+  "version": "1.0.0",
+  "description": "A UI for visualizing video segments",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
