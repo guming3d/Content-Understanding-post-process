@@ -1,12 +1,13 @@
 # Video Speech Transcription and Analysis
 
-This repository contains tools for transcribing speech from video files using Azure Speech-to-Text service and analyzing timestamp data.
+This repository contains tools for transcribing speech from video files using Azure Speech-to-Text service, extracting selling points using Azure OpenAI, and analyzing timestamp data.
 
 ## Requirements
 
 - Python 3.6+
 - FFmpeg installed and available in PATH
 - Azure Speech Service subscription (key and endpoint)
+- Azure OpenAI Service subscription (API key, endpoint, API version, deployment name)
 
 ## Setup
 
@@ -15,87 +16,129 @@ This repository contains tools for transcribing speech from video files using Az
    pip install -r requirements.txt
    ```
 
-2. Create a `.env` file in the project root with your Azure Speech Service credentials:
+2. Create a `.env` file in the project root with your Azure Speech Service and Azure OpenAI Service credentials:
    ```
    AZURE_SPEECH_KEY=your_azure_speech_key_here
    AZURE_SPEECH_ENDPOINT=your_azure_speech_endpoint_here
+   AZURE_OPENAI_API_KEY=your_azure_openai_api_key_here
+   AZURE_OPENAI_API_VERSION=your_azure_openai_api_version_here
+   AZURE_OPENAI_ENDPOINT=your_azure_openai_endpoint_here
+   AZURE_OPENAI_DEPLOYMENT=your_azure_openai_deployment_name_here
    ```
 
-## Using the Transcription Tool (`transcribe_videos.py`)
+## Backend Logic Overview
 
-The transcription tool processes all `.mp4` video files in the `inputs/` directory and generates transcript files with timestamps.
+```mermaid
+graph TD
+    A[Start] --> B{Load Environment Variables};
+    B --> C{Find .mp4 files in 'inputs/'};
+    C -- For each video file --> D[Process Video];
+    D --> E[Extract Audio .wav];
+    E --> F[Transcribe Audio];
+    F --> G[Word-level Transcription .txt];
+    F --> H[Sentence-level Transcription .txt];
+    H --> I[Prepare Text for OpenAI];
+    I --> J[Extract Selling Points Azure OpenAI];
+    J --> K[Save Selling Points .json];
+    G & K --> L[Match Selling Points with Word Timestamps];
+    L --> M[Save Timestamped Selling Points .json];
+    M --> N{Content JSON video.mp4.json exists?};
+    N -- Yes --> O[Load Content JSON];
+    O --> P[Merge Segments based on Selling Points];
+    P --> Q[Save Merged Segments .json];
+    O & M & P --> R[Visualize Segments .png];
+    R --> S[Cleanup Temporary .wav file];
+    N -- No --> S;
+    S --> T{More videos?};
+    T -- Yes --> D;
+    T -- No --> U[End]; 
+```
+
+## Using the Video Processing Tool (`app.py`)
+
+The `app.py` script processes `.mp4` video files in the `inputs/` directory, performs transcription, extracts selling points, matches them with timestamps, merges segments, and generates visualizations.
 
 ### Features:
 - Extracts audio from video using FFmpeg
 - Transcribes using Azure Speech-to-Text service
-- Generates both word-level and sentence-level transcriptions
-- Includes accurate timestamps for each word and sentence
+- Generates both word-level and sentence-level transcriptions with accurate timestamps
+- Extracts selling points from transcriptions using Azure OpenAI
+- Matches extracted selling points with word-level timestamps
+- Merges video segments based on selling point timestamps (requires a `video_name.mp4.json` file in `inputs/` with initial segment data)
+- Visualizes original segments, selling points, and merged segments
 
 ### Running the tool:
 
 ```zsh
-python transcribe_videos.py
+python app.py
 ```
 
 ### Output:
 
 For each video file (e.g., `inputs/example.mp4`), the script produces:
-- `inputs/example_word.txt`: Word-level transcription with timestamps for each word
-- `inputs/example_sentence.txt`: Sentence-level transcription with timestamps for each sentence
+- `inputs/example.wav`: Temporary audio file (deleted after processing)
+- `inputs/example_word.txt`: Word-level transcription with timestamps
+- `inputs/example_sentence.txt`: Sentence-level transcription with timestamps
+- `inputs/example_selling_points.json`: Extracted selling points with matched timestamps
+- `inputs/example_merged_segments.json`: Merged video segments based on selling points (if `inputs/example.mp4.json` exists)
+- `inputs/example_segments_visualization.png`: Visualization of segments, selling points, and merging process (if segment merging occurs)
 
-Example output format:
+Example `_word.txt` / `_sentence.txt` format:
 ```
-[0.07 - 0.67] word1
-[0.70 - 1.30] word2
+[0.07 - 0.67] text_segment
+[0.70 - 1.30] another_text_segment
 ...
 ```
 
-## Using the Timestamp Plotting Tool (`plot_timestamp.py`)
-
-This script visualizes timestamp data, potentially comparing original timestamps with processed ones.
-
-### Running the tool:
-
-```zsh
-python plot_timestamp.py
+Example `_selling_points.json` format:
+```json
+{
+  "selling_points": [
+    {
+      "startTime": 10.5,
+      "endTime": 12.3,
+      "content": "This is a selling point"
+    },
+    // ... more selling points
+  ]
+}
 ```
-
-The script will generate visualizations in the `outputs/` directory based on timestamp data.
 
 ## Workflow Example
 
-1. Place your `.mp4` video files in the `inputs/` directory
-2. Run the transcription tool:
+1. Place your `.mp4` video files in the `inputs/` directory.
+2. (Optional) If you want to use the segment merging feature, place a corresponding `video_name.mp4.json` file (containing initial video segment data) for each video in the `inputs/` directory.
+3. Run the processing tool:
    ```zsh
-   python transcribe_videos.py
+   python app.py
    ```
-3. Examine the generated transcript files
-4. Run the plotting tool to visualize the timestamp data:
-   ```zsh
-   python plot_timestamp.py
-   ```
-5. View the generated plots in the `outputs/` directory
+4. Examine the generated transcript files (`_word.txt`, `_sentence.txt`), selling points (`_selling_points.json`), merged segments (`_merged_segments.json`), and visualizations (`_segments_visualization.png`) in the `inputs/` directory.
 
 ## Troubleshooting
 
-- **FFmpeg not found**: Ensure FFmpeg is installed and added to your PATH
-- **Azure credentials error**: Verify your `.env` file contains valid credentials
-- **No transcriptions generated**: Check Azure Speech Service subscription status and network connectivity
+- **FFmpeg not found**: Ensure FFmpeg is installed and added to your PATH.
+- **Azure credentials error**: Verify your `.env` file contains valid credentials for both Azure Speech and Azure OpenAI services.
+- **No transcriptions generated**: Check Azure Speech Service subscription status and network connectivity.
+- **Selling point extraction issues**: Verify Azure OpenAI credentials, deployment name, and service status. Check logs for errors from the OpenAI API.
+- **Segment merging not working**: Ensure a correctly formatted `video_name.mp4.json` file exists in the `inputs/` directory for the respective video.
 
 ## File Structure
 
 ```
-├── .env                       # Azure Speech Service credentials
+├── .env                       # Azure service credentials
 ├── requirements.txt           # Python dependencies
-├── transcribe_videos.py       # Video transcription script
-├── plot_timestamp.py          # Timestamp analysis script
+├── app.py                     # Main video processing script
+├── transcribe_videos.py       # Module for transcription functions (imported by app.py)
 ├── README.md                  # This documentation
-├── inputs/                    # Directory for input videos
-│   └── *.mp4                  # Video files
-│   └── *_word.txt             # Generated word-level transcripts
-│   └── *_sentence.txt         # Generated sentence-level transcripts
-└── outputs/                   # Directory for generated plots
-    └── *.png                  # Plot images
+├── inputs/                    # Directory for input videos and generated files
+│   ├── *.mp4                  # Input video files
+│   ├── *.mp4.json             # (Optional) Input JSON for initial video segments
+│   ├── *_word.txt             # Generated word-level transcripts
+│   ├── *_sentence.txt         # Generated sentence-level transcripts
+│   ├── *_selling_points.json  # Generated selling points with timestamps
+│   ├── *_merged_segments.json # Generated merged segments
+│   └── *_segments_visualization.png # Generated segment visualization
+└── outputs/                   # (Potentially unused or for other scripts, app.py outputs to inputs/)
 ```
 
 ## Contributing
