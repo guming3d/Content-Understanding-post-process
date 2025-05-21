@@ -694,9 +694,8 @@ def process_video(video_path):
     2. Transcribe audio to get word and sentence level transcriptions
     3. Extract selling points from sentence transcription
     4. Match selling points with timestamps 
-    5. Save results
-    6. Merge video segments based on selling points
-    7. Visualize the merging (optional)
+    5. Merge video segments based on selling points
+    6. Visualize the merging (optional)
     
     Args:
         video_path (str): Path to the video file
