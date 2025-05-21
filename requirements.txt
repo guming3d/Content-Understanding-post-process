@@ -1,6 +1,8 @@
-matplotlib
-pandas
-azure-cognitiveservices-speech
-python-dotenv
-openai
-requests
+# Halara Project Dependencies
+# Pinned versions to ensure reproducibility
+matplotlib==3.10.3
+pandas==2.2.3
+azure-cognitiveservices-speech==1.43.0
+python-dotenv==1.1.0
+openai==1.78.1
+requests==2.32.3
