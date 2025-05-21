@@ -19,6 +19,10 @@ from dotenv import load_dotenv
 import json
 import time
 from openai import AzureOpenAI
+from pathlib import Path
+import uuid
+from typing import Optional
+from content_understanding_client import AzureContentUnderstandingClient
 
 # Import the transcription functions from our module
 from transcribe_videos import (
@@ -38,6 +42,9 @@ OPENAI_API_KEY = os.getenv('AZURE_OPENAI_API_KEY')
 OPENAI_API_VERSION = os.getenv('AZURE_OPENAI_API_VERSION')
 OPENAI_ENDPOINT = os.getenv('AZURE_OPENAI_ENDPOINT')
 OPENAI_DEPLOYMENT = os.getenv('AZURE_OPENAI_DEPLOYMENT')  # Deployment name for GPT-4.1
+CONTENT_UNDERSTANDING_ENDPOINT = os.getenv('AZURE_CONTENT_UNDERSTANDING_ENDPOINT')
+CONTENT_UNDERSTANDING_API_VERSION = os.getenv('AZURE_CONTENT_UNDERSTANDING_API_VERSION')
+CONTENT_UNDERSTANDING_API_KEY = os.getenv('AZURE_CONTENT_UNDERSTANDING_API_KEY')
 
 # Verify environment variables
 required_vars = {
@@ -46,7 +53,9 @@ required_vars = {
     'AZURE_OPENAI_API_KEY': OPENAI_API_KEY,
     'AZURE_OPENAI_API_VERSION': OPENAI_API_VERSION,
     'AZURE_OPENAI_ENDPOINT': OPENAI_ENDPOINT,
-    'AZURE_OPENAI_DEPLOYMENT': OPENAI_DEPLOYMENT
+    'AZURE_OPENAI_DEPLOYMENT': OPENAI_DEPLOYMENT,
+    'AZURE_CONTENT_UNDERSTANDING_ENDPOINT': CONTENT_UNDERSTANDING_ENDPOINT,
+    'AZURE_CONTENT_UNDERSTANDING_API_VERSION': CONTENT_UNDERSTANDING_API_VERSION
 }
 
 missing_vars = [var for var, value in required_vars.items() if not value]
@@ -783,6 +792,73 @@ def process_video(video_path):
             except Exception as e:
                 logging.warning(f"Could not remove temporary audio file {audio_path}: {e}")
 
+def analyze_video(video_path: str, 
+                 endpoint: str, 
+                 api_version: str,
+                 analyzer_template_path: str,
+                 timeout_seconds: int = 3600,
+                 delete_analyzer_after: bool = True) -> Optional[Path]:
+    """
+    Analyzes a video using Azure Content Understanding client and saves results to a JSON file.
+    
+    Args:
+        video_path: Path to the video file
+        endpoint: Azure AI service endpoint
+        api_version: Azure AI service API version
+        analyzer_template_path: Path to the analyzer template JSON
+        timeout_seconds: Timeout for analysis completion in seconds
+        delete_analyzer_after: Whether to delete the analyzer after analysis
+        
+    Returns:
+        Path to the output JSON file or None if analysis failed
+    """
+    try:
+        # Create path objects
+        video_file = Path(video_path)
+        output_json = Path(f"{video_file}.json")
+        
+        # Set up Azure credentials
+        # credential = DefaultAzureCredential()
+        # token_provider = get_bearer_token_provider(credential, "https://cognitiveservices.azure.com/.default")
+        
+        # Generate unique analyzer ID
+        analyzer_id = f"video_scene_chapter_{uuid.uuid4()}"
+        
+        # Create Content Understanding client
+        cu_client = AzureContentUnderstandingClient(
+            endpoint=endpoint,
+            api_version=api_version,
+            api_key=CONTENT_UNDERSTANDING_API_KEY,
+            x_ms_useragent="azure-ai-content-understanding-python/video_analysis",
+        )
+        
+        # Create analyzer
+        logging.info("Creating analyzer with ID: %s", analyzer_id, extra={"analyzer_id": analyzer_id})
+        response = cu_client.begin_create_analyzer(analyzer_id, analyzer_template_path=analyzer_template_path)
+        result = cu_client.poll_result(response)
+        
+        # Submit video for analysis
+        logging.info("Submitting video for analysis: %s", video_file.name, extra={"video": video_file.name})
+        response = cu_client.begin_analyze(analyzer_id, file_location=str(video_file))
+        
+        # Wait for analysis to complete
+        video_cu_result = cu_client.poll_result(response, timeout_seconds=timeout_seconds)
+        
+        # Save results to JSON file
+        with open(output_json, 'w', encoding='utf-8') as f:
+            json.dump(video_cu_result, f, indent=2)
+        
+        logging.info("Analysis complete. Results saved to: %s", output_json, extra={"output_file": str(output_json)})
+        
+        # Delete analyzer if requested
+        if delete_analyzer_after:
+            cu_client.delete_analyzer(analyzer_id)
+            logging.info("Analyzer deleted: %s", analyzer_id, extra={"analyzer_id": analyzer_id})
+        
+        return output_json
+    except Exception as e:
+        logging.error("Video analysis failed: %s", str(e), extra={"error": str(e)})
+        return None
 
 def main():
     """
@@ -796,8 +872,12 @@ def main():
         return
     
     logging.info(f"Found {len(video_files)} videos to process")
+    ANALYZER_TEMPLATE_PATH = "./analyzer_templates/video_content_understanding.json"
     
     for video_path in video_files:
+        # Optionally, analyze the video with Azure Content Understanding
+        # Uncomment the line below to enable analysis
+        analyze_video(video_path, CONTENT_UNDERSTANDING_ENDPOINT, CONTENT_UNDERSTANDING_API_VERSION, ANALYZER_TEMPLATE_PATH)
         process_video(video_path)
         
     logging.info("All videos processed successfully")

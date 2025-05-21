@@ -3,3 +3,4 @@ pandas
 azure-cognitiveservices-speech
 python-dotenv
 openai
+requests
