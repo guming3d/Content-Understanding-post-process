@@ -8,6 +8,7 @@ This repository contains tools for transcribing speech from video files using Az
 - FFmpeg installed and available in PATH
 - Azure Speech Service subscription (key and endpoint)
 - Azure OpenAI Service subscription (API key, endpoint, API version, deployment name)
+- Azure Content Understanding Service subscription (API key, endpoint, API version)
 - Node.js and npm (for running the frontend visualization)
 
 ## Setup
@@ -17,15 +18,29 @@ This repository contains tools for transcribing speech from video files using Az
    pip install -r requirements.txt
    ```
 
-2. Create a `.env` file in the project root with your Azure Speech Service and Azure OpenAI Service credentials:
-   ```
-   AZURE_SPEECH_KEY=your_azure_speech_key_here
-   AZURE_SPEECH_ENDPOINT=your_azure_speech_endpoint_here
-   AZURE_OPENAI_API_KEY=your_azure_openai_api_key_here
-   AZURE_OPENAI_API_VERSION=your_azure_openai_api_version_here
-   AZURE_OPENAI_ENDPOINT=your_azure_openai_endpoint_here
-   AZURE_OPENAI_DEPLOYMENT=your_azure_openai_deployment_name_here
-   ```
+2. Set up your environment variables:
+   - Copy the template to create your own `.env` file:
+     ```zsh
+     cp .env.example .env
+     ```
+   - Open the `.env` file and replace all placeholder values with your actual Azure service credentials:
+     ```
+     # Azure Speech Service
+     AZURE_SPEECH_KEY=your_actual_speech_key
+     AZURE_SPEECH_ENDPOINT=your_actual_speech_endpoint
+     
+     # Azure OpenAI Service
+     AZURE_OPENAI_API_KEY=your_actual_openai_key
+     AZURE_OPENAI_API_VERSION=your_actual_openai_api_version
+     AZURE_OPENAI_ENDPOINT=your_actual_openai_endpoint
+     AZURE_OPENAI_DEPLOYMENT=your_actual_openai_deployment_name
+     
+     # Azure Content Understanding Service
+     AZURE_CONTENT_UNDERSTANDING_ENDPOINT=your_content_understanding_endpoint_here
+     AZURE_CONTENT_UNDERSTANDING_API_VERSION=your_content_understanding_api_version_here
+     AZURE_CONTENT_UNDERSTANDING_API_KEY=your_content_understanding_api_key_here
+     ```
+   - Each variable has comments in the `.env.example` file explaining what it's for and where to find it
 
 3. Install frontend dependencies:
    ```zsh

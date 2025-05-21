@@ -8,6 +8,7 @@
 - FFmpeg 已安装并在系统路径 (PATH) 中可用
 - Azure 语音服务订阅（密钥和终结点）
 - Azure OpenAI 服务订阅（API 密钥、终结点、API 版本、部署名称）
+- Azure 内容理解服务订阅（API 密钥、终结点、API 版本）
 - Node.js 和 npm（用于运行前端可视化）
 
 ## 安装设置
@@ -17,15 +18,29 @@
    pip install -r requirements.txt
    ```
 
-2. 在项目根目录创建一个 `.env` 文件，并填入您的 Azure 语音服务和 Azure OpenAI 服务凭据：
-   ```
-   AZURE_SPEECH_KEY=your_azure_speech_key_here
-   AZURE_SPEECH_ENDPOINT=your_azure_speech_endpoint_here
-   AZURE_OPENAI_API_KEY=your_azure_openai_api_key_here
-   AZURE_OPENAI_API_VERSION=your_azure_openai_api_version_here
-   AZURE_OPENAI_ENDPOINT=your_azure_openai_endpoint_here
-   AZURE_OPENAI_DEPLOYMENT=your_azure_openai_deployment_name_here
-   ```
+2. 设置环境变量：
+   - 复制模板创建您自己的 `.env` 文件：
+     ```zsh
+     cp .env.example .env
+     ```
+   - 打开 `.env` 文件，将所有占位值替换为您的实际 Azure 服务凭据：
+     ```
+     # Azure 语音服务
+     AZURE_SPEECH_KEY=your_actual_speech_key
+     AZURE_SPEECH_ENDPOINT=your_actual_speech_endpoint
+     
+     # Azure OpenAI 服务
+     AZURE_OPENAI_API_KEY=your_actual_openai_key
+     AZURE_OPENAI_API_VERSION=your_actual_openai_api_version
+     AZURE_OPENAI_ENDPOINT=your_actual_openai_endpoint
+     AZURE_OPENAI_DEPLOYMENT=your_actual_openai_deployment_name
+     
+     # Azure 内容理解服务
+     AZURE_CONTENT_UNDERSTANDING_ENDPOINT=your_actual_content_understanding_endpoint
+     AZURE_CONTENT_UNDERSTANDING_API_VERSION=your_actual_content_understanding_api_version
+     AZURE_CONTENT_UNDERSTANDING_API_KEY=your_actual_content_understanding_api_key
+     ```
+   - `.env.example` 文件中的每个变量都有注释，说明其用途及在哪里可以找到它
 
 3. 安装前端依赖：
    ```zsh
