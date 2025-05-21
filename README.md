@@ -55,6 +55,8 @@ graph TD
     A[Start] --> B{Load Environment Variables};
     B --> C{Find .mp4 files in 'inputs/'};
     C -- For each video file --> D[Process Video];
+    D --> D1[Analyze Video with Azure Content Understanding];
+    D1 --> D2[Save Content Understanding JSON];
     D --> E[Extract Audio .wav];
     E --> F[Transcribe Audio];
     F --> G[Word-level Transcription .txt];
