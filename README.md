@@ -52,28 +52,34 @@ This repository contains tools for transcribing speech from video files using Az
 
 ```mermaid
 graph TD
-    A[Start] --> B{Load Environment Variables};
-    B --> C{Find .mp4 files in 'inputs/'};
+    A[Start] --> B[Load Environment Variables];
+    B --> C[Find .mp4 files in 'inputs/'];
     C -- For each video file --> D[Process Video];
-    D --> E[Extract Audio .wav];
-    E --> F[Transcribe Audio];
-    F --> G[Word-level Transcription .txt];
-    F --> H[Sentence-level Transcription .txt];
-    H --> I[Prepare Text for OpenAI];
-    I --> J[Extract Selling Points Azure OpenAI];
-    J --> K[Save Selling Points .json];
-    G & K --> L[Match Selling Points with Word Timestamps];
-    L --> M[Save Timestamped Selling Points .json];
-    M --> N{Content JSON video.mp4.json exists?};
-    N -- Yes --> O[Load Content JSON];
-    O --> P[Merge Segments based on Selling Points];
-    P --> Q[Save Merged Segments .json];
-    O & M & P --> R[Visualize Segments .png];
-    R --> S[Cleanup Temporary .wav file];
-    N -- No --> S;
-    S --> T{More videos?};
-    T -- Yes --> D;
-    T -- No --> U[End]; 
+    D --> E{Analyze with Content Understanding?};
+    E -- Optional --> F[Create Analyzer];
+    F --> G[Submit Video for Analysis];
+    G --> H[Save Analysis Results .json];
+    E --> I[Extract Audio .wav];
+    H --> I;
+    I --> J[Transcribe Audio];
+    J --> K[Word-level Transcription .txt];
+    J --> L[Sentence-level Transcription .txt];
+    L --> M[Create Plain Text from Sentences];
+    M --> N[Extract Selling Points Azure OpenAI];
+    N --> O[Match Selling Points with Word Timestamps];
+    O --> P[Save Timestamped Selling Points .json];
+    P --> Q{Content JSON exists?};
+    Q -- Yes --> R[Load Content JSON];
+    R --> S[Merge Segments based on Selling Points];
+    S --> T[Save Merged Segments .json];
+    S --> U[Generate Visualization .png];
+    Q -- No --> V[Skip Segment Merging];
+    T --> W[Cleanup Temporary .wav file];
+    U --> W;
+    V --> W;
+    W --> X{More videos?};
+    X -- Yes --> D;
+    X -- No --> Y[End];
 ```
 
 ## Using the Video Processing Tool (`app.py`)
