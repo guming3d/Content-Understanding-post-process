@@ -18,6 +18,7 @@ import glob
 import logging
 import json
 import time
+import subprocess
 from pathlib import Path
 import uuid
 from typing import Optional, List, Dict, Any
@@ -25,7 +26,7 @@ from datetime import datetime
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, BackgroundTasks
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, BackgroundTasks, UploadFile, File
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -133,6 +134,7 @@ class VideoInfo(BaseModel):
     path: str
     size_mb: float
     duration: Optional[float] = None
+    thumbnail_url: Optional[str] = None
 
 def extract_selling_points(transcription_text):
     """
@@ -638,6 +640,7 @@ async def process_video_async(video_path: str, video_name: str, enable_content_u
         visualization_path = base + "_segments_visualization.png"
         content_json_path = video_path + ".json"
         audio_path = base + ".wav"
+        thumbnail_path = base + "_thumbnail.jpg"
         
         # Step 1: Content Understanding Analysis (if enabled)
         if enable_content_understanding:
@@ -726,6 +729,11 @@ async def process_video_async(video_path: str, video_name: str, enable_content_u
                 merged_segments_path,
                 visualization_path
             )
+        
+        # Step 9: Generate thumbnail
+        await update_status(video_name, "processing", 100, "Generating video thumbnail...")
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(executor, generate_thumbnail, video_path, thumbnail_path)
         
         # Cleanup
         if os.path.exists(audio_path):
@@ -865,6 +873,80 @@ def create_segments_visualization(merged_segments_path: str, output_path: str) -
         logging.error("Failed to create visualization: %s", str(e), extra={"error": str(e)})
         raise
 
+def generate_thumbnail(video_path: str, thumbnail_path: str, timestamp: float = 3.0) -> bool:
+    """
+    Generate a thumbnail from a video at a specific timestamp using ffmpeg.
+    
+    Args:
+        video_path: Path to the video file
+        thumbnail_path: Path where the thumbnail will be saved
+        timestamp: Time in seconds to capture the thumbnail (default: 3.0)
+        
+    Returns:
+        bool: True if thumbnail generation was successful, False otherwise
+    """
+    try:
+        # Ensure thumbnail directory exists
+        thumbnail_dir = Path(thumbnail_path).parent
+        thumbnail_dir.mkdir(exist_ok=True)
+        
+        # Generate thumbnail using ffmpeg
+        cmd = [
+            'ffmpeg',
+            '-i', video_path,
+            '-ss', str(timestamp),  # Seek to timestamp
+            '-vframes', '1',        # Extract 1 frame
+            '-q:v', '2',           # High quality
+            '-vf', 'scale=w=320:h=240:force_original_aspect_ratio=decrease', # Maintain aspect ratio, fit within 320x240
+            '-y',                  # Overwrite if exists
+            thumbnail_path
+        ]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        if result.returncode == 0:
+            logging.info(f"Thumbnail generated successfully: {thumbnail_path}")
+            return True
+        else:
+            logging.error(f"Failed to generate thumbnail: {result.stderr}")
+            return False
+            
+    except Exception as e:
+        logging.error(f"Error generating thumbnail: {str(e)}")
+        return False
+
+def get_video_duration(video_path: str) -> Optional[float]:
+    """
+    Get video duration in seconds using ffmpeg.
+    
+    Args:
+        video_path: Path to the video file
+        
+    Returns:
+        float: Duration in seconds or None if failed
+    """
+    try:
+        cmd = [
+            'ffprobe',
+            '-v', 'quiet',
+            '-show_entries', 'format=duration',
+            '-of', 'default=noprint_wrappers=1:nokey=1',
+            video_path
+        ]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        if result.returncode == 0:
+            duration = float(result.stdout.strip())
+            return duration
+        else:
+            logging.error(f"Failed to get video duration: {result.stderr}")
+            return None
+            
+    except Exception as e:
+        logging.error(f"Error getting video duration: {str(e)}")
+        return None
+
 # API Endpoints
 @app.get("/api/videos")
 async def list_videos() -> List[VideoInfo]:
@@ -872,16 +954,118 @@ async def list_videos() -> List[VideoInfo]:
     input_dir = "inputs"
     video_files = glob.glob(os.path.join(input_dir, "*.mp4"))
     
+    # Ensure thumbnails directory exists
+    thumbnail_dir = Path("thumbnails")
+    thumbnail_dir.mkdir(exist_ok=True)
+    
     videos = []
     for video_path in video_files:
         video_stat = os.stat(video_path)
+        video_name = os.path.basename(video_path)
+        video_base = os.path.splitext(video_name)[0]
+        
+        # Get video duration
+        duration = get_video_duration(video_path)
+        
+        # Check if thumbnail exists, generate if not
+        thumbnail_path = thumbnail_dir / f"{video_base}.jpg"
+        thumbnail_url = None
+        
+        if not thumbnail_path.exists():
+            # Generate thumbnail asynchronously in background
+            success = generate_thumbnail(video_path, str(thumbnail_path))
+            if success:
+                thumbnail_url = f"/api/thumbnail/{video_name}"
+        else:
+            thumbnail_url = f"/api/thumbnail/{video_name}"
+        
         videos.append(VideoInfo(
-            name=os.path.basename(video_path),
+            name=video_name,
             path=video_path,
-            size_mb=round(video_stat.st_size / (1024 * 1024), 2)
+            size_mb=round(video_stat.st_size / (1024 * 1024), 2),
+            duration=duration,
+            thumbnail_url=thumbnail_url
         ))
     
     return videos
+
+@app.post("/api/upload")
+async def upload_video(file: UploadFile = File(...)):
+    """Upload a video file to the inputs directory"""
+    # Validate file type
+    allowed_extensions = ['.mp4', '.avi', '.mov', '.mkv', '.webm']
+    file_extension = Path(file.filename).suffix.lower()
+    
+    if file_extension not in allowed_extensions:
+        raise HTTPException(status_code=400, detail=f"File type {file_extension} not allowed. Allowed types: {', '.join(allowed_extensions)}")
+    
+    # Create inputs directory if it doesn't exist
+    input_dir = Path("inputs")
+    input_dir.mkdir(exist_ok=True)
+    
+    # Generate unique filename if file already exists
+    original_filename = file.filename
+    file_path = input_dir / original_filename
+    
+    # Check if file exists and generate unique name
+    if file_path.exists():
+        stem = file_path.stem
+        suffix = file_path.suffix
+        counter = 1
+        while file_path.exists():
+            file_path = input_dir / f"{stem}_{counter}{suffix}"
+            counter += 1
+    
+    # Save uploaded file
+    try:
+        content = await file.read()
+        with open(file_path, 'wb') as f:
+            f.write(content)
+        
+        # Get file info
+        file_stat = file_path.stat()
+        
+        # Get video duration
+        duration = get_video_duration(str(file_path))
+        
+        # Generate thumbnail
+        thumbnail_dir = Path("thumbnails")
+        thumbnail_dir.mkdir(exist_ok=True)
+        thumbnail_path = thumbnail_dir / f"{file_path.stem}.jpg"
+        thumbnail_url = None
+        
+        # Generate thumbnail in background
+        success = generate_thumbnail(str(file_path), str(thumbnail_path))
+        if success:
+            thumbnail_url = f"/api/thumbnail/{file_path.name}"
+        
+        video_info = VideoInfo(
+            name=file_path.name,
+            path=str(file_path),
+            size_mb=round(file_stat.st_size / (1024 * 1024), 2),
+            duration=duration,
+            thumbnail_url=thumbnail_url
+        )
+        
+        # Broadcast update to all connected clients
+        await manager.broadcast({
+            "type": "video_added",
+            "video": video_info.dict()
+        })
+        
+        return {
+            "message": "Video uploaded successfully",
+            "video": video_info,
+            "original_filename": original_filename,
+            "saved_filename": file_path.name
+        }
+        
+    except Exception as e:
+        # If upload fails, try to clean up
+        if file_path.exists():
+            file_path.unlink()
+        logging.error("Failed to upload video: %s", str(e), extra={"error": str(e)})
+        raise HTTPException(status_code=500, detail=f"Failed to upload video: {str(e)}")
 
 @app.post("/api/process")
 async def process_video_endpoint(request: ProcessVideoRequest, background_tasks: BackgroundTasks):
@@ -963,6 +1147,43 @@ async def get_results(video_name: str):
                 else:
                     results[key] = f.read()
     
+    # Process content understanding segments for easier display
+    if "content_understanding" in results and "result" in results["content_understanding"]:
+        raw_segments = results["content_understanding"]["result"].get("contents", [])
+        processed_segments = []
+        
+        for idx, segment in enumerate(raw_segments):
+            processed_segment = {
+                "index": idx,
+                "startTimeMs": segment.get("startTimeMs", 0),
+                "endTimeMs": segment.get("endTimeMs", 0),
+                "duration": (segment.get("endTimeMs", 0) - segment.get("startTimeMs", 0)) / 1000.0,
+                "sellingPoint": segment.get("fields", {}).get("sellingPoint", {}).get("valueString", ""),
+                "description": segment.get("fields", {}).get("description", {}).get("valueString", ""),
+                "confidence": segment.get("fields", {}).get("sellingPoint", {}).get("confidence", 0)
+            }
+            
+            # Add merge status if merged_segments exists
+            if "merged_segments" in results:
+                # Check if this segment was merged
+                is_merged = False
+                merged_with = []
+                
+                for merged_seg in results["merged_segments"].get("merged_segments", []):
+                    for overlap_seg in merged_seg.get("overlapping_segments", []):
+                        if (overlap_seg["startTimeMs"] == segment.get("startTimeMs") and 
+                            overlap_seg["endTimeMs"] == segment.get("endTimeMs")):
+                            is_merged = True
+                            merged_with.append(merged_seg["content"])
+                            break
+                
+                processed_segment["isMerged"] = is_merged
+                processed_segment["mergedWith"] = merged_with
+            
+            processed_segments.append(processed_segment)
+        
+        results["content_understanding_segments"] = processed_segments
+    
     return results
 
 @app.get("/api/visualization/{video_name}")
@@ -976,6 +1197,79 @@ async def get_visualization(video_name: str):
     else:
         raise HTTPException(status_code=404, detail="Visualization not found")
 
+@app.get("/api/thumbnail/{video_name}")
+async def get_thumbnail(video_name: str):
+    """Get thumbnail image for a video"""
+    # Create thumbnails directory if it doesn't exist
+    thumbnail_dir = Path("thumbnails")
+    thumbnail_dir.mkdir(exist_ok=True)
+    
+    # Generate thumbnail filename
+    video_base = os.path.splitext(video_name)[0]
+    thumbnail_path = thumbnail_dir / f"{video_base}.jpg"
+    
+    # Check if thumbnail exists
+    if not thumbnail_path.exists():
+        # Generate thumbnail
+        video_path = Path("inputs") / video_name
+        if not video_path.exists():
+            raise HTTPException(status_code=404, detail="Video not found")
+        
+        # Try to generate thumbnail
+        success = generate_thumbnail(str(video_path), str(thumbnail_path))
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to generate thumbnail")
+    
+    return FileResponse(str(thumbnail_path), media_type="image/jpeg")
+
+@app.delete("/api/videos/{video_name}")
+async def delete_video(video_name: str):
+    """Delete a video file and its associated files"""
+    video_path = Path("inputs") / video_name
+    
+    if not video_path.exists():
+        raise HTTPException(status_code=404, detail="Video not found")
+    
+    try:
+        # Delete main video file
+        video_path.unlink()
+        
+        # Delete associated files
+        base_path = video_path.with_suffix('')
+        associated_files = [
+            f"{base_path}_word.txt",
+            f"{base_path}_sentence.txt", 
+            f"{base_path}_selling_points.json",
+            f"{base_path}_merged_segments.json",
+            f"{base_path}_segments_visualization.png",
+            f"{video_path}.json"  # content understanding results
+        ]
+        
+        for file_path in associated_files:
+            if Path(file_path).exists():
+                Path(file_path).unlink()
+        
+        # Delete thumbnail
+        thumbnail_path = Path("thumbnails") / f"{base_path.name}.jpg"
+        if thumbnail_path.exists():
+            thumbnail_path.unlink()
+        
+        # Remove from processing status
+        if video_name in processing_status:
+            del processing_status[video_name]
+        
+        # Broadcast update to all connected clients
+        await manager.broadcast({
+            "type": "video_deleted",
+            "video_name": video_name
+        })
+        
+        return {"message": f"Video {video_name} and associated files deleted successfully"}
+        
+    except Exception as e:
+        logging.error(f"Failed to delete video {video_name}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete video: {str(e)}")
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     """WebSocket endpoint for real-time updates"""
@@ -986,7 +1280,37 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 
-# Serve static files (frontend)
+# Serve video files from inputs directory - MUST BE BEFORE static files mount
+@app.get("/inputs/{filename}")
+async def serve_video(filename: str):
+    """Serve video files from the inputs directory"""
+    video_path = Path("inputs") / filename
+    
+    if not video_path.exists():
+        raise HTTPException(status_code=404, detail="Video file not found")
+    
+    # Determine media type based on file extension
+    extension = video_path.suffix.lower()
+    media_types = {
+        '.mp4': 'video/mp4',
+        '.avi': 'video/x-msvideo',
+        '.mov': 'video/quicktime',
+        '.mkv': 'video/x-matroska',
+        '.webm': 'video/webm'
+    }
+    
+    media_type = media_types.get(extension, 'video/mp4')
+    
+    return FileResponse(
+        path=str(video_path),
+        media_type=media_type,
+        headers={
+            "Accept-Ranges": "bytes",  # Enable video seeking
+            "Content-Disposition": f"inline; filename={filename}"
+        }
+    )
+
+# Serve static files (frontend) - MUST BE AFTER all other routes
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
 
 if __name__ == "__main__":
