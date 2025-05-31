@@ -1,28 +1,44 @@
 """
 app.py
 
-Main control logic for the video transcription and analysis pipeline:
-1. Transcribes videos to get word-level and sentence-level transcriptions
-2. Uses Azure OpenAI to extract selling points from the transcriptions
-3. Saves results to output files
+FastAPI backend server for video transcription and analysis pipeline:
+1. Provides REST API endpoints for video processing
+2. WebSocket support for real-time progress updates
+3. Serves static frontend files
 
 Requirements:
 - Azure Speech Service for transcription
 - Azure OpenAI Service for selling points extraction
+- Azure Content Understanding for video analysis
 - ffmpeg for audio extraction
 """
 
 import os
 import glob
 import logging
-from dotenv import load_dotenv
 import json
 import time
-from openai import AzureOpenAI
 from pathlib import Path
 import uuid
-from typing import Optional
-from content_understanding_client import AzureContentUnderstandingClient
+from typing import Optional, List, Dict, Any
+from datetime import datetime
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, BackgroundTasks
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+
+from dotenv import load_dotenv
+from openai import AzureOpenAI
+
+# Import visualization library
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
 # Import the transcription functions from our module
 from transcribe_videos import (
@@ -30,6 +46,7 @@ from transcribe_videos import (
     transcribe_audio_with_word_timestamps,
     transcribe_audio_with_sentence_timestamps
 )
+from content_understanding_client import AzureContentUnderstandingClient
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s')
@@ -41,7 +58,7 @@ SPEECH_ENDPOINT = os.getenv('AZURE_SPEECH_ENDPOINT')
 OPENAI_API_KEY = os.getenv('AZURE_OPENAI_API_KEY')
 OPENAI_API_VERSION = os.getenv('AZURE_OPENAI_API_VERSION')
 OPENAI_ENDPOINT = os.getenv('AZURE_OPENAI_ENDPOINT')
-OPENAI_DEPLOYMENT = os.getenv('AZURE_OPENAI_DEPLOYMENT')  # Deployment name for GPT-4.1
+OPENAI_DEPLOYMENT = os.getenv('AZURE_OPENAI_DEPLOYMENT')
 CONTENT_UNDERSTANDING_ENDPOINT = os.getenv('AZURE_CONTENT_UNDERSTANDING_ENDPOINT')
 CONTENT_UNDERSTANDING_API_VERSION = os.getenv('AZURE_CONTENT_UNDERSTANDING_API_VERSION')
 CONTENT_UNDERSTANDING_API_KEY = os.getenv('AZURE_CONTENT_UNDERSTANDING_API_KEY')
@@ -49,7 +66,7 @@ CONTENT_UNDERSTANDING_API_KEY = os.getenv('AZURE_CONTENT_UNDERSTANDING_API_KEY')
 # Verify environment variables
 required_vars = {
     'AZURE_SPEECH_KEY': SPEECH_KEY,
-    'AZURE_SPEECH_ENDPOINT': SPEECH_ENDPOINT, 
+    'AZURE_SPEECH_ENDPOINT': SPEECH_ENDPOINT,
     'AZURE_OPENAI_API_KEY': OPENAI_API_KEY,
     'AZURE_OPENAI_API_VERSION': OPENAI_API_VERSION,
     'AZURE_OPENAI_ENDPOINT': OPENAI_ENDPOINT,
@@ -62,6 +79,60 @@ missing_vars = [var for var, value in required_vars.items() if not value]
 if missing_vars:
     logging.error(f"Missing required environment variables: {', '.join(missing_vars)}")
     exit(1)
+
+# Initialize FastAPI app
+app = FastAPI(title="Video Analysis API", version="1.0.0")
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# WebSocket manager for real-time updates
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: dict):
+        for connection in self.active_connections:
+            try:
+                await connection.send_json(message)
+            except:
+                pass
+
+manager = ConnectionManager()
+
+# Processing status storage
+processing_status: Dict[str, Dict[str, Any]] = {}
+
+# Thread pool for background processing
+executor = ThreadPoolExecutor(max_workers=3)
+
+# Pydantic models
+class ProcessVideoRequest(BaseModel):
+    video_name: str
+    enable_content_understanding: bool = True
+
+class BatchProcessRequest(BaseModel):
+    video_names: list[str]
+    enable_content_understanding: bool = True
+
+class VideoInfo(BaseModel):
+    name: str
+    path: str
+    size_mb: float
+    duration: Optional[float] = None
 
 def extract_selling_points(transcription_text):
     """
@@ -468,330 +539,6 @@ def merge_segments_by_selling_points(content_json, selling_points_json, time_dev
     
     return result
 
-def visualize_segments(content_json, selling_points_json, merged_segments, output_path=None):
-    """
-    Visualize the original video segments, selling points, merged segments, and final segments
-    
-    Args:
-        content_json: Original content understanding output JSON
-        selling_points_json: Selling points with timestamps JSON
-        merged_segments: Result from merge_segments_by_selling_points
-        output_path: Path to save the visualization (if None, display instead)
-    """
-    try:
-        import matplotlib.pyplot as plt
-        import matplotlib.patches as patches
-        import numpy as np
-        from matplotlib.lines import Line2D
-        
-        # Get video segments
-        video_segments = content_json["result"]["contents"]
-        selling_points = selling_points_json["selling_points"]
-        
-        # Calculate time range for the plot
-        max_time_ms = max([segment["endTimeMs"] for segment in video_segments])
-        
-        # Set up the figure and axes
-        fig, ax = plt.subplots(figsize=(15, 8))
-        
-        # Define colors
-        colors = {
-            'original': 'lightblue',
-            'merged': 'lightgreen',
-            'unmerged': 'lightgray',
-            'selling_point': 'coral',
-            'final_segment': 'purple'  # New color for final segments
-        }
-        
-        # Define formatting function for timestamps
-        def format_timestamp(ms):
-            seconds = ms / 1000
-            return f"{seconds:.2f}s"
-        
-        # Track y position for plotting
-        y_pos = 0
-        y_height = 0.8
-        y_gap = 1.5
-        
-        # Plot section titles
-        ax.text(-max_time_ms * 0.05, y_pos + y_height/2, "Video Segments", 
-                fontsize=10, va='center', ha='right', fontweight='bold')
-        
-        # Plot original video segments
-        for i, segment in enumerate(video_segments):
-            start = segment["startTimeMs"]
-            end = segment["endTimeMs"]
-            label = segment["fields"].get("sellingPoint", {}).get("valueString", "")
-            
-            # Check if this segment was merged
-            was_merged = any(i for merged_segment in merged_segments["merged_segments"] 
-                           if merged_segment["overlapping_segments"] and 
-                           any(os["startTimeMs"] == segment["startTimeMs"] and os["endTimeMs"] == segment["endTimeMs"] 
-                              for os in merged_segment["overlapping_segments"]))
-            
-            color = colors['merged'] if was_merged else colors['unmerged']
-            
-            # Draw the segment as a rectangle
-            rect = patches.Rectangle((start, y_pos), end - start, y_height, 
-                                    facecolor=color, edgecolor='black', alpha=0.7)
-            ax.add_patch(rect)
-            
-            # Add timestamp labels at boundaries
-            ax.text(start, y_pos - 0.2, format_timestamp(start), 
-                    ha='center', va='top', fontsize=7, rotation=45)
-            ax.text(end, y_pos - 0.2, format_timestamp(end), 
-                    ha='center', va='top', fontsize=7, rotation=45)
-            
-            # Add segment label
-            if label:
-                ax.text((start + end) / 2, y_pos + y_height/2, label, 
-                        ha='center', va='center', fontsize=8)
-            
-            y_pos += y_gap
-        
-        # Add space between sections
-        y_pos += y_gap
-        
-        # Plot section titles for selling points
-        ax.text(-max_time_ms * 0.05, y_pos + y_height/2, "Selling Points", 
-                fontsize=10, va='center', ha='right', fontweight='bold')
-        
-        # Plot selling points with timestamps
-        for point in selling_points:
-            if point["startTime"] is not None and point["endTime"] is not None:
-                start = int(point["startTime"] * 1000)
-                end = int(point["endTime"] * 1000)
-                
-                # Draw the segment as a rectangle
-                rect = patches.Rectangle((start, y_pos), end - start, y_height, 
-                                        facecolor=colors['selling_point'], edgecolor='black', alpha=0.7)
-                ax.add_patch(rect)
-                
-                # Add timestamp labels at boundaries
-                ax.text(start, y_pos - 0.2, format_timestamp(start), 
-                        ha='center', va='top', fontsize=7, rotation=45)
-                ax.text(end, y_pos - 0.2, format_timestamp(end), 
-                        ha='center', va='top', fontsize=7, rotation=45)
-                
-                # Add segment label
-                ax.text((start + end) / 2, y_pos + y_height/2, point["content"][:20] + "...", 
-                        ha='center', va='center', fontsize=8)
-            else:
-                # For selling points without timestamps
-                ax.text(0, y_pos + y_height/2, f"No timestamp: {point['content'][:20]}...", 
-                        ha='left', va='center', fontsize=8, style='italic')
-            
-            y_pos += y_gap
-        
-        # Add space between sections
-        y_pos += y_gap
-        
-        # Plot section titles for merged segments
-        ax.text(-max_time_ms * 0.05, y_pos + y_height/2, "Merged Segments", 
-                fontsize=10, va='center', ha='right', fontweight='bold')
-        
-        # Plot merged segments
-        for merged_segment in merged_segments["merged_segments"]:
-            if merged_segment["startTimeMs"] is not None and merged_segment["endTimeMs"] is not None:
-                start = merged_segment["startTimeMs"]
-                end = merged_segment["endTimeMs"]
-                
-                # Draw the segment as a rectangle
-                rect = patches.Rectangle((start, y_pos), end - start, y_height, 
-                                        facecolor=colors['selling_point'], edgecolor='black', alpha=0.7)
-                ax.add_patch(rect)
-                
-                # Add timestamp labels at boundaries
-                ax.text(start, y_pos - 0.2, format_timestamp(start), 
-                        ha='center', va='top', fontsize=7, rotation=45)
-                ax.text(end, y_pos - 0.2, format_timestamp(end), 
-                        ha='center', va='top', fontsize=7, rotation=45)
-                
-                # Add segment label
-                ax.text((start + end) / 2, y_pos + y_height/2, merged_segment["content"][:20] + "...", 
-                        ha='center', va='center', fontsize=8)
-                
-                # Draw lines connecting to original segments
-                for overlap in merged_segment["overlapping_segments"]:
-                    # Find index of the original segment
-                    for i, segment in enumerate(video_segments):
-                        if segment["startTimeMs"] == overlap["startTimeMs"] and segment["endTimeMs"] == overlap["endTimeMs"]:
-                            # Draw a line from this merged segment to the original segment
-                            original_y = i * y_gap + y_height/2
-                            merged_y = y_pos + y_height/2
-                            
-                            mid_x = (overlap["startTimeMs"] + overlap["endTimeMs"]) / 2;
-                            
-                            ax.add_line(Line2D([mid_x, mid_x], [original_y, merged_y], 
-                                              color='black', linestyle='--', alpha=0.5))
-                            break
-            else:
-                # For selling points without timestamps
-                ax.text(0, y_pos + y_height/2, f"No matches: {merged_segment['content'][:20]}...", 
-                        ha='left', va='center', fontsize=8, style='italic')
-            
-            y_pos += y_gap
-            
-        # Add space between sections
-        y_pos += y_gap
-        
-        # Plot section titles for final segments
-        ax.text(-max_time_ms * 0.05, y_pos + y_height/2, "Final Segments", 
-                fontsize=10, va='center', ha='right', fontweight='bold')
-        
-        # Plot final segments
-        for final_segment in merged_segments["final_segments"]:
-            start = final_segment["startTimeMs"]
-            end = final_segment["endTimeMs"]
-            
-            # Draw the segment as a rectangle
-            rect = patches.Rectangle((start, y_pos), end - start, y_height, 
-                                    facecolor=colors['final_segment'], edgecolor='black', alpha=0.7)
-            ax.add_patch(rect)
-            
-            # Add timestamp labels at boundaries
-            ax.text(start, y_pos - 0.2, format_timestamp(start), 
-                    ha='center', va='top', fontsize=7, rotation=45)
-            ax.text(end, y_pos - 0.2, format_timestamp(end), 
-                    ha='center', va='top', fontsize=7, rotation=45)
-            
-            # Add segment label
-            selling_point = final_segment["sellingPoint"]
-            if selling_point:
-                display_text = selling_point[:20] + "..." if len(selling_point) > 20 else selling_point
-                ax.text((start + end) / 2, y_pos + y_height/2, display_text, 
-                        ha='center', va='center', fontsize=8)
-            
-            y_pos += y_gap
-        
-        # Set axis limits and labels
-        ax.set_xlim(-max_time_ms * 0.05, max_time_ms * 1.05)
-        ax.set_ylim(-y_gap, y_pos + y_gap)
-        ax.set_xlabel('Time (ms)')
-        ax.set_title('Video Segment Merging Visualization')
-        
-        # Remove y-axis ticks and labels
-        ax.set_yticks([])
-        
-        # Add legend
-        legend_elements = [
-            patches.Patch(facecolor=colors['unmerged'], edgecolor='black', alpha=0.7, label='Unmerged segment'),
-            patches.Patch(facecolor=colors['merged'], edgecolor='black', alpha=0.7, label='Merged segment'),
-            patches.Patch(facecolor=colors['selling_point'], edgecolor='black', alpha=0.7, label='Selling point'),
-            patches.Patch(facecolor=colors['final_segment'], edgecolor='black', alpha=0.7, label='Final segment')
-        ]
-        ax.legend(handles=legend_elements, loc='upper right')
-        
-        # Save or display the plot
-        if output_path:
-            plt.tight_layout()
-            plt.savefig(output_path)
-            logging.info(f"Visualization saved to {output_path}")
-        else:
-            plt.tight_layout()
-            plt.show()
-            
-    except ImportError:
-        logging.warning("Matplotlib not installed. Visualization skipped.")
-    except Exception as e:
-        logging.error(f"Error creating visualization: {e}")
-
-def process_video(video_path):
-    """
-    Process a single video file:
-    1. Extract audio from video
-    2. Transcribe audio to get word and sentence level transcriptions
-    3. Extract selling points from sentence transcription
-    4. Match selling points with timestamps 
-    5. Merge video segments based on selling points
-    6. Visualize the merging (optional)
-    
-    Args:
-        video_path (str): Path to the video file
-    """
-    base = os.path.splitext(video_path)[0]
-    word_txt_path = base + "_word.txt"
-    sentence_txt_path = base + "_sentence.txt"
-    selling_points_path = base + "_selling_points.json"
-    merged_segments_path = base + "_merged_segments.json"
-    visualization_path = base + "_segments_visualization.png"
-    content_json_path = video_path + ".json"  # Assuming content understanding output is named as video_name.mp4.json
-    audio_path = base + ".wav"  # Temporary audio file
-    
-    logging.info(f"Processing {video_path} ...")
-    
-    try:
-        # Step 1: Extract audio from video
-        extract_audio_from_video(video_path, audio_path)
-        
-        # Step 2: Get word-level timestamps
-        word_segments = transcribe_audio_with_word_timestamps(audio_path, SPEECH_KEY, SPEECH_ENDPOINT)
-        with open(word_txt_path, "w", encoding="utf-8") as f:
-            for start, end, word in word_segments:
-                f.write(f"[{start:.2f} - {end:.2f}] {word}\n")
-        logging.info(f"Word-level transcription saved to {word_txt_path}")
-        
-        # Step 3: Get sentence-level timestamps
-        sentence_segments = transcribe_audio_with_sentence_timestamps(audio_path, SPEECH_KEY, SPEECH_ENDPOINT)
-        
-        # Save sentence transcriptions
-        with open(sentence_txt_path, "w", encoding="utf-8") as f:
-            for start, end, sentence in sentence_segments:
-                f.write(f"[{start:.2f} - {end:.2f}] {sentence}\n")
-        logging.info(f"Sentence-level transcription saved to {sentence_txt_path}")
-        
-        # Step 4: Create plain text from sentence transcriptions for OpenAI processing
-        transcription_text = "\n".join([sentence for _, _, sentence in sentence_segments])
-        
-        # Step 5: Extract selling points using Azure OpenAI
-        selling_points = extract_selling_points(transcription_text)
-        
-        # Step 6: Match selling points with word-level timestamps
-        timestamped_selling_points = match_selling_points_with_timestamps(word_segments, selling_points)
-        
-        # Save selling points with timestamps
-        with open(selling_points_path, "w", encoding="utf-8") as f:
-            json.dump({"selling_points": timestamped_selling_points}, f, indent=2)
-        logging.info(f"Selling points with timestamps saved to {selling_points_path}")
-        
-        # Step 7: Merge video segments based on selling points if content JSON exists
-        if os.path.exists(content_json_path):
-            try:
-                with open(content_json_path, 'r') as f:
-                    content_json = json.load(f)
-                
-                with open(selling_points_path, 'r') as f:
-                    selling_points_json = json.load(f)
-                
-                # Using min_overlap_percentage of 0.2 (20%) to avoid merging segments with minimal overlap
-                merged_segments = merge_segments_by_selling_points(content_json, selling_points_json, 
-                                                                  time_deviation_ms=0, 
-                                                                  min_overlap_percentage=0.2)
-                
-                with open(merged_segments_path, 'w') as f:
-                    json.dump(merged_segments, f, indent=2)
-                
-                logging.info(f"Merged segments saved to {merged_segments_path}")
-                
-                # Step 8: Create visualization
-                visualize_segments(content_json, selling_points_json, merged_segments, visualization_path)
-                
-            except Exception as e:
-                logging.error(f"Failed to merge video segments: {e}")
-        else:
-            logging.warning(f"Content understanding output file {content_json_path} not found. Skipping segment merging.")
-        
-    except Exception as e:
-        logging.error(f"Failed to process {video_path}: {e}")
-    finally:
-        # Clean up the temporary wav file
-        if os.path.exists(audio_path):
-            try:
-                os.remove(audio_path)
-                logging.info(f"Temporary audio file {audio_path} removed.")
-            except Exception as e:
-                logging.warning(f"Could not remove temporary audio file {audio_path}: {e}")
-
 def analyze_video(video_path: str, 
                  endpoint: str, 
                  api_version: str,
@@ -860,27 +607,388 @@ def analyze_video(video_path: str,
         logging.error("Video analysis failed: %s", str(e), extra={"error": str(e)})
         return None
 
-def main():
+async def update_status(video_name: str, status: str, progress: int, message: str = ""):
+    """Update processing status and broadcast via WebSocket"""
+    processing_status[video_name] = {
+        "status": status,
+        "progress": progress,
+        "message": message,
+        "timestamp": datetime.now().isoformat()
+    }
+    await manager.broadcast({
+        "type": "status_update",
+        "video_name": video_name,
+        "status": status,
+        "progress": progress,
+        "message": message
+    })
+
+async def process_video_async(video_path: str, video_name: str, enable_content_understanding: bool = True):
     """
-    Main function to process all videos in the input directory
+    Async wrapper for video processing with status updates
     """
+    try:
+        await update_status(video_name, "processing", 0, "Starting video processing...")
+        
+        base = os.path.splitext(video_path)[0]
+        word_txt_path = base + "_word.txt"
+        sentence_txt_path = base + "_sentence.txt"
+        selling_points_path = base + "_selling_points.json"
+        merged_segments_path = base + "_merged_segments.json"
+        visualization_path = base + "_segments_visualization.png"
+        content_json_path = video_path + ".json"
+        audio_path = base + ".wav"
+        
+        # Step 1: Content Understanding Analysis (if enabled)
+        if enable_content_understanding:
+            await update_status(video_name, "processing", 10, "Analyzing video content...")
+            analyzer_template_path = "./analyzer_templates/video_content_understanding.json"
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(
+                executor, 
+                analyze_video, 
+                video_path, 
+                CONTENT_UNDERSTANDING_ENDPOINT, 
+                CONTENT_UNDERSTANDING_API_VERSION, 
+                analyzer_template_path
+            )
+        
+        # Step 2: Extract audio
+        await update_status(video_name, "processing", 30, "Extracting audio from video...")
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(executor, extract_audio_from_video, video_path, audio_path)
+        
+        # Step 3: Word-level transcription
+        await update_status(video_name, "processing", 40, "Transcribing audio (word-level)...")
+        word_segments = await loop.run_in_executor(
+            executor, 
+            transcribe_audio_with_word_timestamps, 
+            audio_path, 
+            SPEECH_KEY, 
+            SPEECH_ENDPOINT
+        )
+        
+        with open(word_txt_path, "w", encoding="utf-8") as f:
+            for start, end, word in word_segments:
+                f.write(f"[{start:.2f} - {end:.2f}] {word}\n")
+        
+        # Step 4: Sentence-level transcription
+        await update_status(video_name, "processing", 50, "Transcribing audio (sentence-level)...")
+        sentence_segments = await loop.run_in_executor(
+            executor,
+            transcribe_audio_with_sentence_timestamps,
+            audio_path,
+            SPEECH_KEY,
+            SPEECH_ENDPOINT
+        )
+        
+        with open(sentence_txt_path, "w", encoding="utf-8") as f:
+            for start, end, sentence in sentence_segments:
+                f.write(f"[{start:.2f} - {end:.2f}] {sentence}\n")
+        
+        # Step 5: Extract selling points
+        await update_status(video_name, "processing", 70, "Extracting selling points...")
+        transcription_text = "\n".join([sentence for _, _, sentence in sentence_segments])
+        selling_points = await loop.run_in_executor(executor, extract_selling_points, transcription_text)
+        
+        # Step 6: Match selling points with timestamps
+        await update_status(video_name, "processing", 80, "Matching selling points with timestamps...")
+        timestamped_selling_points = match_selling_points_with_timestamps(word_segments, selling_points)
+        
+        with open(selling_points_path, "w", encoding="utf-8") as f:
+            json.dump({"selling_points": timestamped_selling_points}, f, indent=2)
+        
+        # Step 7: Merge segments if content analysis was done
+        if enable_content_understanding and os.path.exists(content_json_path):
+            await update_status(video_name, "processing", 90, "Merging video segments...")
+            
+            with open(content_json_path, 'r') as f:
+                content_json = json.load(f)
+            
+            with open(selling_points_path, 'r') as f:
+                selling_points_json = json.load(f)
+            
+            merged_segments = merge_segments_by_selling_points(
+                content_json, 
+                selling_points_json,
+                time_deviation_ms=0,
+                min_overlap_percentage=0.2
+            )
+            
+            with open(merged_segments_path, 'w') as f:
+                json.dump(merged_segments, f, indent=2)
+            
+            # Step 8: Generate visualization
+            await update_status(video_name, "processing", 95, "Generating visualization...")
+            await loop.run_in_executor(
+                executor,
+                create_segments_visualization,
+                merged_segments_path,
+                visualization_path
+            )
+        
+        # Cleanup
+        if os.path.exists(audio_path):
+            os.remove(audio_path)
+        
+        await update_status(video_name, "completed", 100, "Processing completed successfully!")
+        
+    except Exception as e:
+        logging.error(f"Error processing video {video_name}: {str(e)}")
+        await update_status(video_name, "error", 0, f"Error: {str(e)}")
+
+def create_segments_visualization(merged_segments_path: str, output_path: str) -> None:
+    """
+    Create a visualization of video segments showing merged and unmerged segments.
+    
+    Args:
+        merged_segments_path: Path to the merged segments JSON file
+        output_path: Path where the visualization PNG will be saved
+    """
+    try:
+        # Load merged segments data
+        with open(merged_segments_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        # Extract segments
+        merged_segments = data.get('merged_segments', [])
+        unmerged_segments = data.get('unmerged_segments', [])
+        final_segments = data.get('final_segments', [])
+        
+        # Find max time for x-axis
+        max_time = 0
+        for seg in merged_segments + unmerged_segments + final_segments:
+            if seg.get('endTimeMs'):
+                max_time = max(max_time, seg['endTimeMs'])
+        
+        # Convert to seconds
+        max_time_seconds = max_time / 1000
+        
+        # Create figure and axis
+        fig, ax = plt.subplots(figsize=(14, 8))
+        
+        # Define colors
+        merged_color = '#2E86AB'  # Blue
+        unmerged_color = '#A23B72'  # Purple
+        final_color = '#F18F01'  # Orange
+        
+        # Height settings
+        bar_height = 0.8
+        y_positions = {'merged': 3, 'unmerged': 2, 'final': 1}
+        
+        # Plot merged segments
+        for seg in merged_segments:
+            if seg.get('startTimeMs') is not None and seg.get('endTimeMs') is not None:
+                start = seg['startTimeMs'] / 1000
+                duration = (seg['endTimeMs'] - seg['startTimeMs']) / 1000
+                rect = patches.Rectangle(
+                    (start, y_positions['merged'] - bar_height/2),
+                    duration, bar_height,
+                    linewidth=1, edgecolor='black', facecolor=merged_color,
+                    alpha=0.7
+                )
+                ax.add_patch(rect)
+                
+                # Add label
+                content = seg.get('content', '')[:30] + '...' if len(seg.get('content', '')) > 30 else seg.get('content', '')
+                ax.text(start + duration/2, y_positions['merged'], content,
+                       ha='center', va='center', fontsize=8, rotation=0)
+        
+        # Plot unmerged segments
+        for seg in unmerged_segments:
+            if seg.get('startTimeMs') is not None and seg.get('endTimeMs') is not None:
+                start = seg['startTimeMs'] / 1000
+                duration = (seg['endTimeMs'] - seg['startTimeMs']) / 1000
+                rect = patches.Rectangle(
+                    (start, y_positions['unmerged'] - bar_height/2),
+                    duration, bar_height,
+                    linewidth=1, edgecolor='black', facecolor=unmerged_color,
+                    alpha=0.7
+                )
+                ax.add_patch(rect)
+                
+                # Add label
+                selling_point = seg.get('sellingPoint', '')[:20] + '...' if len(seg.get('sellingPoint', '')) > 20 else seg.get('sellingPoint', '')
+                if selling_point:
+                    ax.text(start + duration/2, y_positions['unmerged'], selling_point,
+                           ha='center', va='center', fontsize=8, rotation=0)
+        
+        # Plot final segments
+        for seg in final_segments:
+            if seg.get('startTimeMs') is not None and seg.get('endTimeMs') is not None:
+                start = seg['startTimeMs'] / 1000
+                duration = (seg['endTimeMs'] - seg['startTimeMs']) / 1000
+                rect = patches.Rectangle(
+                    (start, y_positions['final'] - bar_height/2),
+                    duration, bar_height,
+                    linewidth=1, edgecolor='black', facecolor=final_color,
+                    alpha=0.7
+                )
+                ax.add_patch(rect)
+                
+                # Add label
+                selling_point = seg.get('sellingPoint', '')[:20] + '...' if len(seg.get('sellingPoint', '')) > 20 else seg.get('sellingPoint', '')
+                if selling_point:
+                    ax.text(start + duration/2, y_positions['final'], selling_point,
+                           ha='center', va='center', fontsize=8, rotation=0)
+        
+        # Configure plot
+        ax.set_xlim(0, max_time_seconds * 1.05)
+        ax.set_ylim(0.5, 3.5)
+        ax.set_xlabel('Time (seconds)', fontsize=12)
+        ax.set_ylabel('Segment Type', fontsize=12)
+        ax.set_title('Video Segments Visualization', fontsize=14, fontweight='bold')
+        
+        # Set y-axis labels
+        ax.set_yticks([1, 2, 3])
+        ax.set_yticklabels(['Final Segments', 'Unmerged Segments', 'Merged Segments'])
+        
+        # Add legend
+        legend_elements = [
+            patches.Patch(facecolor=merged_color, alpha=0.7, label='Merged Segments'),
+            patches.Patch(facecolor=unmerged_color, alpha=0.7, label='Unmerged Segments'),
+            patches.Patch(facecolor=final_color, alpha=0.7, label='Final Segments')
+        ]
+        ax.legend(handles=legend_elements, loc='upper right')
+        
+        # Add grid
+        ax.grid(True, axis='x', alpha=0.3)
+        
+        # Tight layout and save
+        plt.tight_layout()
+        plt.savefig(output_path, dpi=300, bbox_inches='tight')
+        plt.close(fig)
+        
+        logging.info("Visualization saved to: %s", output_path, extra={"output_file": output_path})
+        
+    except Exception as e:
+        logging.error("Failed to create visualization: %s", str(e), extra={"error": str(e)})
+        raise
+
+# API Endpoints
+@app.get("/api/videos")
+async def list_videos() -> List[VideoInfo]:
+    """List all available videos in the inputs directory"""
     input_dir = "inputs"
     video_files = glob.glob(os.path.join(input_dir, "*.mp4"))
     
-    if not video_files:
-        logging.info("No video files found in 'inputs' directory.")
-        return
-    
-    logging.info(f"Found {len(video_files)} videos to process")
-    ANALYZER_TEMPLATE_PATH = "./analyzer_templates/video_content_understanding.json"
-    
+    videos = []
     for video_path in video_files:
-        # Optionally, analyze the video with Azure Content Understanding
-        # Uncomment the line below to enable analysis
-        analyze_video(video_path, CONTENT_UNDERSTANDING_ENDPOINT, CONTENT_UNDERSTANDING_API_VERSION, ANALYZER_TEMPLATE_PATH)
-        process_video(video_path)
+        video_stat = os.stat(video_path)
+        videos.append(VideoInfo(
+            name=os.path.basename(video_path),
+            path=video_path,
+            size_mb=round(video_stat.st_size / (1024 * 1024), 2)
+        ))
+    
+    return videos
+
+@app.post("/api/process")
+async def process_video_endpoint(request: ProcessVideoRequest, background_tasks: BackgroundTasks):
+    """Start processing a video"""
+    video_path = os.path.join("inputs", request.video_name)
+    
+    if not os.path.exists(video_path):
+        raise HTTPException(status_code=404, detail="Video not found")
+    
+    # Start processing in background
+    background_tasks.add_task(
+        process_video_async, 
+        video_path, 
+        request.video_name,
+        request.enable_content_understanding
+    )
+    
+    return {"message": "Processing started", "video_name": request.video_name}
+
+@app.post("/api/process-batch")
+async def process_batch_endpoint(request: BatchProcessRequest, background_tasks: BackgroundTasks):
+    """Start processing multiple videos"""
+    processed_videos = []
+    not_found_videos = []
+    
+    for video_name in request.video_names:
+        video_path = os.path.join("inputs", video_name)
         
-    logging.info("All videos processed successfully")
+        if not os.path.exists(video_path):
+            not_found_videos.append(video_name)
+            continue
+        
+        # Start processing in background
+        background_tasks.add_task(
+            process_video_async, 
+            video_path, 
+            video_name,
+            request.enable_content_understanding
+        )
+        processed_videos.append(video_name)
+    
+    return {
+        "message": f"Started processing {len(processed_videos)} videos",
+        "processed_videos": processed_videos,
+        "not_found_videos": not_found_videos
+    }
+
+@app.get("/api/status/{video_name}")
+async def get_status(video_name: str):
+    """Get processing status for a video"""
+    if video_name not in processing_status:
+        return {"status": "not_started"}
+    return processing_status[video_name]
+
+@app.get("/api/status-all")
+async def get_all_status():
+    """Get processing status for all videos"""
+    return processing_status
+
+@app.get("/api/results/{video_name}")
+async def get_results(video_name: str):
+    """Get processing results for a video"""
+    base_path = os.path.join("inputs", os.path.splitext(video_name)[0])
+    
+    results = {}
+    result_files = {
+        "word_transcription": f"{base_path}_word.txt",
+        "sentence_transcription": f"{base_path}_sentence.txt",
+        "selling_points": f"{base_path}_selling_points.json",
+        "merged_segments": f"{base_path}_merged_segments.json",
+        "content_understanding": f"{base_path}.mp4.json"
+    }
+    
+    for key, file_path in result_files.items():
+        if os.path.exists(file_path):
+            with open(file_path, 'r', encoding='utf-8') as f:
+                if file_path.endswith('.json'):
+                    results[key] = json.load(f)
+                else:
+                    results[key] = f.read()
+    
+    return results
+
+@app.get("/api/visualization/{video_name}")
+async def get_visualization(video_name: str):
+    """Get visualization image for a video"""
+    base_path = os.path.join("inputs", os.path.splitext(video_name)[0])
+    viz_path = f"{base_path}_segments_visualization.png"
+    
+    if os.path.exists(viz_path):
+        return FileResponse(viz_path, media_type="image/png")
+    else:
+        raise HTTPException(status_code=404, detail="Visualization not found")
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    """WebSocket endpoint for real-time updates"""
+    await manager.connect(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+
+# Serve static files (frontend)
+app.mount("/", StaticFiles(directory="static", html=True), name="static")
 
 if __name__ == "__main__":
-    main()
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

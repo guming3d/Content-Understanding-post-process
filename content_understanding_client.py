@@ -11,13 +11,14 @@ class AzureContentUnderstandingClient:
         self,
         endpoint: str,
         api_version: str,
+        api_key: str = None,
         subscription_key: str = None,
         token_provider: callable = None,
         x_ms_useragent: str = "cu-sample-code",
     ):
-        if not subscription_key and not token_provider:
+        if not any([api_key, subscription_key, token_provider]):
             raise ValueError(
-                "Either subscription key or token provider must be provided."
+                "Either api_key, subscription_key, or token_provider must be provided."
             )
         if not api_version:
             raise ValueError("API version must be provided.")
@@ -27,9 +28,11 @@ class AzureContentUnderstandingClient:
         self._endpoint = endpoint.rstrip("/")
         self._api_version = api_version
         self._logger = logging.getLogger(__name__)
-        self._headers = self._get_headers(
-            subscription_key, token_provider(), x_ms_useragent
-        )
+
+        # Use api_key as subscription_key if provided (they're the same thing in Azure)
+        effective_subscription_key = api_key or subscription_key
+        token = token_provider() if token_provider else None
+        self._headers = self._get_headers(effective_subscription_key, token, x_ms_useragent)
 
     def _get_analyzer_url(self, endpoint, api_version, analyzer_id):
         return f"{endpoint}/contentunderstanding/analyzers/{analyzer_id}?api-version={api_version}"  # noqa
@@ -54,7 +57,7 @@ class AzureContentUnderstandingClient:
         Args:
             subscription_key (str): The subscription key for the service.
             api_token (str): The API token for the service.
-            enable_face_identification (bool): A flag to enable face identification.
+            x_ms_useragent (str): The user agent string.
         Returns:
             dict: A dictionary containing the headers for the HTTP requests.
         """

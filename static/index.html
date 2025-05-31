@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Analysis Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f0f2f5;
+            color: #1a1a1a;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 0;
+            margin: -20px -20px 30px -20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        /* Batch Controls */
+        .batch-controls {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .batch-info {
+            display: flex;
+            align-items: center;
+            gap: 30px;
+        }
+
+        .selected-count {
+            font-size: 1.1rem;
+            color: #667eea;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .selected-count i {
+            font-size: 1.3rem;
+        }
+
+        .toggle-switch {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .toggle-switch input[type="checkbox"] {
+            width: 50px;
+            height: 26px;
+            appearance: none;
+            background: #e0e0e0;
+            border-radius: 13px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .toggle-switch input[type="checkbox"]:checked {
+            background: #667eea;
+        }
+
+        .toggle-switch input[type="checkbox"]::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+
+        .toggle-switch input[type="checkbox"]:checked::after {
+            transform: translateX(24px);
+        }
+
+        .toggle-switch label {
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .batch-buttons {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5a67d8;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #d0d0d0;
+        }
+
+        .btn-success {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #38a169;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(72, 187, 120, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        /* Video Grid */
+        .section {
+            margin-bottom: 40px;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 20px;
+        }
+
+        .video-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .video-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+
+        .video-card.selected {
+            border: 2px solid #667eea;
+            background: #f8f9ff;
+        }
+
+        .video-card.processing {
+            border: 2px solid #f6ad55;
+            background: #fffdf7;
+        }
+
+        .video-card.completed {
+            border: 2px solid #48bb78;
+            background: #f0fdf4;
+        }
+
+        .video-card.error {
+            border: 2px solid #fc8181;
+            background: #fff5f5;
+        }
+
+        .video-checkbox {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+        }
+
+        .video-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+        }
+
+        .video-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .video-info {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 15px;
+        }
+
+        .video-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .status-not-started {
+            background: #e0e0e0;
+            color: #666;
+        }
+
+        .status-processing {
+            background: #fed7aa;
+            color: #c05621;
+        }
+
+        .status-completed {
+            background: #d4edda;
+            color: #2f855a;
+        }
+
+        .status-error {
+            background: #fee;
+            color: #e53e3e;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 15px;
+        }
+
+        .video-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: auto;
+        }
+
+        .video-actions .btn {
+            flex: 1;
+            justify-content: center;
+            padding: 8px 12px;
+            font-size: 0.9rem;
+        }
+
+        /* Results Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background: white;
+            max-width: 1000px;
+            max-height: 90vh;
+            margin: 40px auto;
+            border-radius: 12px;
+            overflow: hidden;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            font-size: 1.5rem;
+            cursor: pointer;
+            opacity: 0.8;
+            transition: opacity 0.3s;
+        }
+
+        .modal-close:hover {
+            opacity: 1;
+        }
+
+        .modal-body {
+            padding: 30px;
+            max-height: calc(90vh - 80px);
+            overflow-y: auto;
+        }
+
+        .result-section {
+            margin-bottom: 30px;
+        }
+
+        .result-section h3 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .result-section h3 i {
+            color: #667eea;
+        }
+
+        .selling-points-list {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .selling-point-item {
+            padding: 10px 0;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .selling-point-item:last-child {
+            border-bottom: none;
+        }
+
+        .selling-point-text {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .selling-point-time {
+            font-size: 0.85rem;
+            color: #666;
+            background: #e0e0e0;
+            padding: 3px 10px;
+            border-radius: 12px;
+        }
+
+        .visualization-container {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .visualization-container img {
+            max-width: 100%;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            color: #ddd;
+            margin-bottom: 20px;
+        }
+
+        .empty-state h3 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .batch-controls {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .video-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .modal-content {
+                margin: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <h1><i class="fas fa-video"></i> Video Analysis Dashboard</h1>
+            <p>Process and analyze videos with Azure AI Services</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Batch Controls -->
+        <div class="batch-controls">
+            <div class="batch-info">
+                <div class="selected-count">
+                    <i class="fas fa-check-square"></i>
+                    <span><span id="selectedCount">0</span> videos selected</span>
+                </div>
+                <div class="toggle-switch">
+                    <input type="checkbox" id="enableContentUnderstanding" checked>
+                    <label for="enableContentUnderstanding">Content Understanding</label>
+                </div>
+            </div>
+            <div class="batch-buttons">
+                <button class="btn btn-secondary" onclick="selectAllVideos()">
+                    <i class="fas fa-check-double"></i> Select All
+                </button>
+                <button class="btn btn-secondary" onclick="clearSelection()">
+                    <i class="fas fa-times"></i> Clear Selection
+                </button>
+                <button class="btn btn-success" id="processSelectedBtn" onclick="processSelectedVideos()" disabled>
+                    <i class="fas fa-play"></i> Process Selected
+                </button>
+            </div>
+        </div>
+
+        <!-- Videos Section -->
+        <div class="section">
+            <div class="section-header">
+                <h2 class="section-title">
+                    <i class="fas fa-film"></i> Available Videos
+                </h2>
+            </div>
+            <div id="videoList" class="video-grid">
+                <!-- Videos will be loaded here -->
+            </div>
+            <div id="emptyState" class="empty-state" style="display: none;">
+                <i class="fas fa-folder-open"></i>
+                <h3>No videos found</h3>
+                <p>Add video files to the inputs directory to get started</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Modal -->
+    <div id="resultsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Video Results</h2>
+                <span class="modal-close" onclick="closeModal()">&times;</span>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Results will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let selectedVideos = new Set();
+        let videoStatuses = {};
+        
+        // Initialize WebSocket connection
+        function initWebSocket() {
+            ws = new WebSocket(`ws://${window.location.host}/ws`);
+            
+            ws.onopen = () => {
+                console.log('WebSocket connected');
+            };
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.type === 'status_update') {
+                    updateVideoStatus(data.video_name, data);
+                }
+            };
+            
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+            
+            ws.onclose = () => {
+                console.log('WebSocket disconnected');
+                // Reconnect after 3 seconds
+                setTimeout(initWebSocket, 3000);
+            };
+        }
+        
+        // Load and display available videos
+        async function loadVideos() {
+            try {
+                const response = await fetch('/api/videos');
+                const videos = await response.json();
+                
+                const videoList = document.getElementById('videoList');
+                const emptyState = document.getElementById('emptyState');
+                
+                if (videos.length === 0) {
+                    videoList.style.display = 'none';
+                    emptyState.style.display = 'block';
+                    return;
+                }
+                
+                videoList.style.display = 'grid';
+                emptyState.style.display = 'none';
+                
+                // Load all statuses
+                const statusResponse = await fetch('/api/status-all');
+                const allStatuses = await statusResponse.json();
+                videoStatuses = allStatuses;
+                
+                videoList.innerHTML = '';
+                
+                videos.forEach(video => {
+                    const status = videoStatuses[video.name] || { status: 'not_started' };
+                    const isSelected = selectedVideos.has(video.name);
+                    
+                    const videoCard = document.createElement('div');
+                    videoCard.className = `video-card ${status.status}${isSelected ? ' selected' : ''}`;
+                    videoCard.id = `video-${video.name}`;
+                    
+                    let statusIcon = 'fa-circle';
+                    let statusText = 'Not Started';
+                    
+                    switch(status.status) {
+                        case 'processing':
+                            statusIcon = 'fa-spinner fa-spin';
+                            statusText = 'Processing';
+                            break;
+                        case 'completed':
+                            statusIcon = 'fa-check-circle';
+                            statusText = 'Completed';
+                            break;
+                        case 'error':
+                            statusIcon = 'fa-exclamation-circle';
+                            statusText = 'Error';
+                            break;
+                    }
+                    
+                    videoCard.innerHTML = `
+                        <input type="checkbox" class="video-checkbox" 
+                               id="checkbox-${video.name}" 
+                               ${isSelected ? 'checked' : ''}
+                               onclick="toggleVideoSelection('${video.name}', event)">
+                        
+                        <div class="video-icon">
+                            <i class="fas fa-video"></i>
+                        </div>
+                        
+                        <h3 class="video-name">${video.name}</h3>
+                        
+                        <div class="video-info">
+                            <i class="fas fa-file"></i> ${video.size_mb} MB
+                        </div>
+                        
+                        <div class="video-status">
+                            <span class="status-badge status-${status.status}">
+                                <i class="fas ${statusIcon}"></i> ${statusText}
+                            </span>
+                        </div>
+                        
+                        ${status.status === 'processing' ? `
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${status.progress}%"></div>
+                            </div>
+                            <div class="progress-text">${status.message}</div>
+                        ` : ''}
+                        
+                        <div class="video-actions">
+                            <button class="btn btn-primary" onclick="processVideo('${video.name}')" 
+                                    ${status.status === 'processing' ? 'disabled' : ''}>
+                                <i class="fas fa-play"></i> Process
+                            </button>
+                            ${status.status === 'completed' ? 
+                                `<button class="btn btn-secondary" onclick="viewResults('${video.name}')">
+                                    <i class="fas fa-chart-bar"></i> Results
+                                </button>` : ''}
+                        </div>
+                    `;
+                    
+                    // Add click event to the video card (but not on buttons or checkbox)
+                    videoCard.addEventListener('click', (e) => {
+                        if (!e.target.matches('button') && !e.target.matches('input')) {
+                            toggleVideoSelection(video.name);
+                        }
+                    });
+                    
+                    videoList.appendChild(videoCard);
+                });
+                
+                updateSelectedCount();
+            } catch (error) {
+                console.error('Failed to load videos:', error);
+            }
+        }
+        
+        // Toggle video selection
+        function toggleVideoSelection(videoName, event) {
+            if (event) {
+                event.stopPropagation();
+            }
+            
+            const videoCard = document.getElementById(`video-${videoName}`);
+            const checkbox = document.getElementById(`checkbox-${videoName}`);
+            
+            if (selectedVideos.has(videoName)) {
+                selectedVideos.delete(videoName);
+                videoCard.classList.remove('selected');
+                if (checkbox && !event) checkbox.checked = false;
+            } else {
+                selectedVideos.add(videoName);
+                videoCard.classList.add('selected');
+                if (checkbox && !event) checkbox.checked = true;
+            }
+            
+            updateSelectedCount();
+        }
+        
+        // Update selected count and button state
+        function updateSelectedCount() {
+            const count = selectedVideos.size;
+            document.getElementById('selectedCount').textContent = count;
+            document.getElementById('processSelectedBtn').disabled = count === 0;
+        }
+        
+        // Select all videos
+        function selectAllVideos() {
+            const videoCards = document.querySelectorAll('.video-card');
+            videoCards.forEach(card => {
+                const videoName = card.id.replace('video-', '');
+                selectedVideos.add(videoName);
+                card.classList.add('selected');
+                const checkbox = document.getElementById(`checkbox-${videoName}`);
+                if (checkbox) checkbox.checked = true;
+            });
+            updateSelectedCount();
+        }
+        
+        // Clear selection
+        function clearSelection() {
+            selectedVideos.clear();
+            document.querySelectorAll('.video-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            document.querySelectorAll('.video-checkbox').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            updateSelectedCount();
+        }
+        
+        // Process selected videos
+        async function processSelectedVideos() {
+            if (selectedVideos.size === 0) return;
+            
+            const enableContentUnderstanding = document.getElementById('enableContentUnderstanding').checked;
+            const btn = document.getElementById('processSelectedBtn');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            
+            try {
+                const response = await fetch('/api/process-batch', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        video_names: Array.from(selectedVideos),
+                        enable_content_understanding: enableContentUnderstanding
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.not_found_videos.length > 0) {
+                    alert(`Some videos were not found: ${result.not_found_videos.join(', ')}`);
+                }
+                
+                clearSelection();
+            } catch (error) {
+                console.error('Failed to start batch processing:', error);
+                alert('Failed to start batch processing');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-play"></i> Process Selected';
+            }
+        }
+        
+        // Process individual video
+        async function processVideo(videoName) {
+            const enableContentUnderstanding = document.getElementById('enableContentUnderstanding').checked;
+            
+            try {
+                const response = await fetch('/api/process', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        video_name: videoName,
+                        enable_content_understanding: enableContentUnderstanding
+                    })
+                });
+                
+                const result = await response.json();
+            } catch (error) {
+                console.error('Failed to start processing:', error);
+                alert('Failed to start processing');
+            }
+        }
+        
+        // Update video status in UI
+        function updateVideoStatus(videoName, statusData) {
+            videoStatuses[videoName] = statusData;
+            
+            const videoCard = document.getElementById(`video-${videoName}`);
+            if (!videoCard) return;
+            
+            // Update card classes
+            videoCard.classList.remove('not_started', 'processing', 'completed', 'error');
+            videoCard.classList.add(statusData.status);
+            
+            // Update status badge
+            let statusIcon = 'fa-circle';
+            let statusText = 'Not Started';
+            
+            switch(statusData.status) {
+                case 'processing':
+                    statusIcon = 'fa-spinner fa-spin';
+                    statusText = 'Processing';
+                    break;
+                case 'completed':
+                    statusIcon = 'fa-check-circle';
+                    statusText = 'Completed';
+                    break;
+                case 'error':
+                    statusIcon = 'fa-exclamation-circle';
+                    statusText = 'Error';
+                    break;
+            }
+            
+            const statusBadge = videoCard.querySelector('.status-badge');
+            statusBadge.className = `status-badge status-${statusData.status}`;
+            statusBadge.innerHTML = `<i class="fas ${statusIcon}"></i> ${statusText}`;
+            
+            // Update progress
+            let progressHtml = '';
+            if (statusData.status === 'processing') {
+                progressHtml = `
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${statusData.progress}%"></div>
+                    </div>
+                    <div class="progress-text">${statusData.message}</div>
+                `;
+            }
+            
+            // Update progress section
+            const existingProgress = videoCard.querySelector('.progress-bar');
+            const existingProgressText = videoCard.querySelector('.progress-text');
+            
+            if (statusData.status === 'processing') {
+                if (existingProgress) {
+                    existingProgress.querySelector('.progress-fill').style.width = `${statusData.progress}%`;
+                    existingProgressText.textContent = statusData.message;
+                } else {
+                    const statusDiv = videoCard.querySelector('.video-status');
+                    statusDiv.insertAdjacentHTML('afterend', progressHtml);
+                }
+            } else {
+                if (existingProgress) existingProgress.remove();
+                if (existingProgressText) existingProgressText.remove();
+            }
+            
+            // Update buttons
+            const processBtn = videoCard.querySelector('.btn-primary');
+            processBtn.disabled = statusData.status === 'processing';
+            
+            // Add results button if completed
+            if (statusData.status === 'completed') {
+                const resultsBtn = videoCard.querySelector('.btn-secondary');
+                if (!resultsBtn) {
+                    processBtn.insertAdjacentHTML('afterend', 
+                        `<button class="btn btn-secondary" onclick="viewResults('${videoName}')">
+                            <i class="fas fa-chart-bar"></i> Results
+                        </button>`);
+                }
+            }
+        }
+        
+        // View results for a video
+        async function viewResults(videoName) {
+            try {
+                const response = await fetch(`/api/results/${videoName}`);
+                const results = await response.json();
+                
+                document.getElementById('modalTitle').textContent = `Results: ${videoName}`;
+                const modalBody = document.getElementById('modalBody');
+                
+                let content = '';
+                
+                if (results.selling_points) {
+                    content += `
+                        <div class="result-section">
+                            <h3><i class="fas fa-tags"></i> Selling Points</h3>
+                            <div class="selling-points-list">
+                    `;
+                    
+                    results.selling_points.selling_points.forEach(sp => {
+                        const timeStr = sp.startTime ? 
+                            `${sp.startTime.toFixed(1)}s - ${sp.endTime.toFixed(1)}s` : 
+                            'No timestamp';
+                        
+                        content += `
+                            <div class="selling-point-item">
+                                <span class="selling-point-text">${sp.content}</span>
+                                <span class="selling-point-time">${timeStr}</span>
+                            </div>
+                        `;
+                    });
+                    
+                    content += `
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                if (results.merged_segments) {
+                    content += `
+                        <div class="result-section">
+                            <h3><i class="fas fa-object-group"></i> Segment Analysis</h3>
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px;">
+                                <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; text-align: center;">
+                                    <div style="font-size: 2rem; font-weight: 700; color: #2196F3;">${results.merged_segments.merged_segments.length}</div>
+                                    <div style="color: #666;">Merged Segments</div>
+                                </div>
+                                <div style="background: #f3e5f5; padding: 15px; border-radius: 8px; text-align: center;">
+                                    <div style="font-size: 2rem; font-weight: 700; color: #9C27B0;">${results.merged_segments.unmerged_segments.length}</div>
+                                    <div style="color: #666;">Unmerged Segments</div>
+                                </div>
+                                <div style="background: #fff3e0; padding: 15px; border-radius: 8px; text-align: center;">
+                                    <div style="font-size: 2rem; font-weight: 700; color: #FF9800;">${results.merged_segments.final_segments.length}</div>
+                                    <div style="color: #666;">Final Segments</div>
+                                </div>
+                            </div>
+                            <div class="visualization-container">
+                                <img src="/api/visualization/${videoName}" alt="Segments Visualization">
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                modalBody.innerHTML = content;
+                document.getElementById('resultsModal').style.display = 'block';
+            } catch (error) {
+                console.error('Failed to load results:', error);
+                alert('Failed to load results');
+            }
+        }
+        
+        // Close modal
+        function closeModal() {
+            document.getElementById('resultsModal').style.display = 'none';
+        }
+        
+        // Close modal when clicking outside
+        window.onclick = (event) => {
+            const modal = document.getElementById('resultsModal');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        };
+        
+        // Initialize
+        initWebSocket();
+        loadVideos();
+        
+        // Refresh video list every 5 seconds to update statuses
+        setInterval(loadVideos, 5000);
+    </script>
+</body>
+</html>
