@@ -579,6 +579,7 @@
             background: rgba(0,0,0,0.5);
             z-index: 1000;
             animation: fadeIn 0.3s ease;
+            overflow-y: auto;
         }
 
         @keyframes fadeIn {
@@ -588,12 +589,13 @@
 
         .modal-content {
             background: white;
-            max-width: 1000px;
-            max-height: 90vh;
-            margin: 40px auto;
+            max-width: 1400px;
+            width: 95%;
+            margin: 20px auto;
             border-radius: 12px;
             overflow: hidden;
             animation: slideIn 0.3s ease;
+            max-height: none;
         }
 
         @keyframes slideIn {
@@ -608,6 +610,9 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 10;
         }
 
         .modal-header h2 {
@@ -628,18 +633,21 @@
 
         .modal-body {
             padding: 30px;
-            max-height: calc(90vh - 80px);
-            overflow-y: auto;
+            background: #f8f9fa;
         }
 
         .result-section {
             margin-bottom: 30px;
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
         }
 
         .result-section h3 {
             font-size: 1.2rem;
             font-weight: 600;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
             color: #333;
             display: flex;
             align-items: center;
@@ -650,214 +658,60 @@
             color: #667eea;
         }
 
-        .selling-points-list {
-            background: #f8f9fa;
-            border-radius: 8px;
-            padding: 20px;
+        /* Video Player Layout */
+        .video-results-layout {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
         }
-
-        .selling-point-item {
-            padding: 10px 0;
-            border-bottom: 1px solid #e0e0e0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        
+        @media (min-width: 1200px) {
+            .video-results-layout {
+                grid-template-columns: 2fr 1fr;
+                gap: 30px;
+            }
         }
-
-        .selling-point-item:last-child {
-            border-bottom: none;
-        }
-
-        .selling-point-text {
-            font-weight: 500;
-            color: #333;
-        }
-
-        .selling-point-time {
-            font-size: 0.85rem;
-            color: #666;
-            background: #e0e0e0;
-            padding: 3px 10px;
+        
+        .video-section {
+            background: white;
+            padding: 25px;
             border-radius: 12px;
-        }
-
-        .visualization-container {
-            margin-top: 20px;
-            text-align: center;
-        }
-
-        .visualization-container img {
-            max-width: 100%;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        }
-
-        /* Empty State */
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: #666;
-        }
-
-        .empty-state i {
-            font-size: 4rem;
-            color: #ddd;
-            margin-bottom: 20px;
-        }
-
-        .empty-state h3 {
-            font-size: 1.5rem;
-            margin-bottom: 10px;
-            color: #333;
-        }
-
-        /* Loading Spinner */
-        .spinner {
-            display: inline-block;
-            width: 16px;
-            height: 16px;
-            border: 2px solid rgba(255,255,255,0.3);
-            border-radius: 50%;
-            border-top-color: white;
-            animation: spin 0.8s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        /* Content Understanding Segments Styles */
-        .cu-segments-container {
-            margin-top: 20px;
-            padding: 15px;
-            background-color: #f8f9fa;
-            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
         }
         
-        .cu-segment {
-            margin-bottom: 15px;
-            padding: 15px;
-            background-color: white;
-            border-radius: 6px;
-            border: 1px solid #dee2e6;
-            position: relative;
-        }
-        
-        .cu-segment.merged {
-            border-color: #28a745;
-            background-color: #f0f9f4;
-        }
-        
-        .cu-segment.unmerged {
-            border-color: #dc3545;
-            background-color: #fef5f5;
-        }
-        
-        .segment-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-        
-        .segment-index {
-            font-weight: bold;
-            color: #495057;
-        }
-        
-        .segment-time {
-            font-size: 0.9em;
-            color: #6c757d;
-        }
-        
-        .segment-status {
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.85em;
-            font-weight: 500;
-        }
-        
-        .segment-status.merged {
-            background-color: #28a745;
-            color: white;
-        }
-        
-        .segment-status.unmerged {
-            background-color: #dc3545;
-            color: white;
-        }
-        
-        .segment-content {
-            margin-top: 10px;
-        }
-        
-        .segment-field {
-            margin-bottom: 8px;
-        }
-        
-        .field-label {
-            font-weight: 600;
-            color: #495057;
-            display: inline-block;
-            min-width: 100px;
-        }
-        
-        .field-value {
-            color: #212529;
-        }
-        
-        .merged-info {
-            margin-top: 10px;
-            padding: 10px;
-            background-color: #e7f3ff;
-            border-radius: 4px;
-            font-size: 0.9em;
-        }
-        
-        .segments-filter {
-            margin-bottom: 15px;
-            display: flex;
-            gap: 10px;
-        }
-        
-        .filter-btn {
-            padding: 6px 12px;
-            border: 1px solid #dee2e6;
-            background-color: white;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .filter-btn:hover {
-            background-color: #f8f9fa;
-        }
-        
-        .filter-btn.active {
-            background-color: #007bff;
-            color: white;
-            border-color: #007bff;
-        }
-        
-        .segments-summary {
-            margin-bottom: 15px;
-            padding: 10px;
-            background-color: #e9ecef;
-            border-radius: 4px;
-            font-size: 0.9em;
+        .segments-section {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            max-height: 800px;
+            overflow-y: auto;
         }
 
         /* Video Player and Timeline Styles */
+        .video-player-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 100%;
+            margin: 0 auto;
+        }
+        
         .video-player-container {
-            margin: 20px 0;
+            position: relative;
+            width: 100%;
+            padding-bottom: 56.25%; /* 16:9 aspect ratio */
             background: #000;
             border-radius: 8px;
             overflow: hidden;
         }
         
         .video-player {
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
-            display: block;
+            height: 100%;
+            object-fit: contain;
         }
         
         .timeline-container {
@@ -896,6 +750,7 @@
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            min-width: 30px;
         }
         
         .timeline-segment:hover {
@@ -921,6 +776,7 @@
             top: 0;
             pointer-events: none;
             z-index: 20;
+            box-shadow: 0 0 4px rgba(255, 0, 0, 0.5);
         }
         
         .timeline-time-markers {
@@ -929,6 +785,7 @@
             height: 30px;
             top: 0;
             border-bottom: 1px solid #ddd;
+            background: rgba(255, 255, 255, 0.8);
         }
         
         .time-marker {
@@ -945,7 +802,9 @@
             gap: 15px;
             padding: 15px;
             background: #f8f9fa;
-            border-radius: 0 0 8px 8px;
+            border-radius: 8px;
+            margin-top: 15px;
+            flex-wrap: wrap;
         }
         
         .play-pause-btn {
@@ -972,8 +831,29 @@
             min-width: 120px;
         }
         
+        .timeline-zoom-controls {
+            margin-left: auto;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .zoom-btn {
+            background: #e0e0e0;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: background 0.2s;
+        }
+        
+        .zoom-btn:hover {
+            background: #d0d0d0;
+        }
+        
         .segment-info-tooltip {
-            position: absolute;
+            position: fixed;
             background: rgba(0, 0, 0, 0.9);
             color: white;
             padding: 8px 12px;
@@ -990,6 +870,9 @@
             grid-template-columns: 1fr;
             gap: 10px;
             margin-top: 20px;
+            max-height: 600px;
+            overflow-y: auto;
+            padding-right: 10px;
         }
         
         .segment-item-clickable {
@@ -1009,18 +892,20 @@
         .segment-item-clickable.active {
             background: #e7f3ff;
             border-color: #667eea;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
         }
         
         .segment-item-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 8px;
+            gap: 10px;
         }
         
         .segment-item-content {
             font-weight: 500;
             color: #333;
+            flex: 1;
         }
         
         .segment-item-time {
@@ -1029,23 +914,58 @@
             background: #e0e0e0;
             padding: 3px 10px;
             border-radius: 12px;
+            white-space: nowrap;
         }
         
-        .segment-item-type {
-            font-size: 0.75rem;
-            padding: 2px 8px;
+        /* Scrollbar styles */
+        .segments-section::-webkit-scrollbar,
+        .segment-list-with-player::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .segments-section::-webkit-scrollbar-track,
+        .segment-list-with-player::-webkit-scrollbar-track {
+            background: #f1f1f1;
             border-radius: 4px;
-            margin-left: 8px;
         }
         
-        .segment-item-type.merged {
-            background: #d4edda;
-            color: #2f855a;
+        .segments-section::-webkit-scrollbar-thumb,
+        .segment-list-with-player::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
         }
         
-        .segment-item-type.unmerged {
-            background: #fee;
-            color: #e53e3e;
+        .segments-section::-webkit-scrollbar-thumb:hover,
+        .segment-list-with-player::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        /* Final-segments strip */
+        .final-timeline-container{
+            position:relative;
+            height:60px;
+            background:#fafafa;
+            border:1px solid #ddd;
+            border-radius:8px;
+            overflow-x:auto;
+            margin:10px 0 0;
+        }
+        .final-timeline{position:relative;height:100%;min-width:100%}
+        .final-timeline-segment{
+            position:absolute;top:10px;height:40px;
+            background:#F18F01;border:1px solid #d27c00;
+            border-radius:4px;opacity:.85;cursor:pointer;
+            display:flex;align-items:center;justify-content:center;
+            font-size:.75rem;color:#fff;min-width:30px;padding:0 3px;
+        }
+        .final-timeline-cursor{
+            position:absolute;top:0;width:2px;height:100%;
+            background:#ff0000;pointer-events:none;z-index:20;
+        }
+        
+        /* General */
+        .hidden {
+            display: none !important;
         }
         
         /* Responsive */
@@ -1168,6 +1088,22 @@
         let selectedVideos = new Set();
         let videoStatuses = {};
         let recentUploads = [];
+        let finalSegments = [];
+        let finalTimelineCursor = null;
+        let videoPlayer = null;
+        let videoDuration = 0;
+        let timelineCursor = null;
+        let currentVideoName = null;
+        let segments = [];
+        
+        // Format time in seconds to MM:SS format
+        function formatTime(seconds) {
+            if (!seconds || seconds <= 0) return '0:00';
+            
+            const minutes = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${minutes}:${secs.toString().padStart(2, '0')}`;
+        }
         
         // Format duration in seconds to MM:SS or HH:MM:SS format
         function formatDuration(seconds) {
@@ -1182,6 +1118,171 @@
             } else {
                 return `${minutes}:${secs.toString().padStart(2, '0')}`;
             }
+        }
+        
+        // Initialize video player
+        function initializeVideoPlayer(videoName) {
+            currentVideoName = videoName;
+            const player = document.getElementById('videoPlayer');
+            if (player) {
+                videoPlayer = player;
+                videoPlayer.load();
+            }
+        }
+        
+        // Create timeline for merged/unmerged segments
+        function createTimeline(mergedSegmentsData, duration) {
+            const timeline = document.getElementById('timeline');
+            if (!timeline) return;
+            
+            timeline.innerHTML = '';
+            segments = mergedSegmentsData;
+            
+            // Add time markers
+            const timeMarkers = document.createElement('div');
+            timeMarkers.className = 'timeline-time-markers';
+            timeline.appendChild(timeMarkers);
+            
+            // Add time markers every 10 seconds
+            const markerInterval = 10;
+            for (let i = 0; i <= duration; i += markerInterval) {
+                const marker = document.createElement('div');
+                marker.className = 'time-marker';
+                marker.style.left = `${(i / duration) * 100}%`;
+                marker.textContent = formatTime(i);
+                timeMarkers.appendChild(marker);
+            }
+            
+            // Add merged segments
+            if (mergedSegmentsData.merged_segments) {
+                mergedSegmentsData.merged_segments.forEach((segment, index) => {
+                    if (segment.startTimeMs != null && segment.endTimeMs != null) {
+                        const segmentEl = document.createElement('div');
+                        segmentEl.className = 'timeline-segment merged';
+                        const start = segment.startTimeMs / 1000;
+                        const segmentDuration = (segment.endTimeMs - segment.startTimeMs) / 1000;
+                        segmentEl.style.left = `${(start / duration) * 100}%`;
+                        segmentEl.style.width = `${(segmentDuration / duration) * 100}%`;
+                        segmentEl.textContent = segment.content?.substring(0, 20) || `M${index + 1}`;
+                        segmentEl.onclick = () => {
+                            if (videoPlayer) videoPlayer.currentTime = start;
+                        };
+                        segmentEl.onmouseenter = (e) => showSegmentTooltip(e, segment, 'merged');
+                        segmentEl.onmouseleave = () => {
+                            const tooltip = document.getElementById('segmentTooltip');
+                            if (tooltip) tooltip.style.display = 'none';
+                        };
+                        timeline.appendChild(segmentEl);
+                    }
+                });
+            }
+            
+            // Add unmerged segments
+            if (mergedSegmentsData.unmerged_segments) {
+                mergedSegmentsData.unmerged_segments.forEach((segment, index) => {
+                    if (segment.startTimeMs != null && segment.endTimeMs != null) {
+                        const segmentEl = document.createElement('div');
+                        segmentEl.className = 'timeline-segment unmerged';
+                        const start = segment.startTimeMs / 1000;
+                        const segmentDuration = (segment.endTimeMs - segment.startTimeMs) / 1000;
+                        segmentEl.style.left = `${(start / duration) * 100}%`;
+                        segmentEl.style.width = `${(segmentDuration / duration) * 100}%`;
+                        segmentEl.textContent = segment.sellingPoint?.substring(0, 20) || `U${index + 1}`;
+                        segmentEl.onclick = () => {
+                            if (videoPlayer) videoPlayer.currentTime = start;
+                        };
+                        segmentEl.onmouseenter = (e) => showSegmentTooltip(e, segment, 'unmerged');
+                        segmentEl.onmouseleave = () => {
+                            const tooltip = document.getElementById('segmentTooltip');
+                            if (tooltip) tooltip.style.display = 'none';
+                        };
+                        timeline.appendChild(segmentEl);
+                    }
+                });
+            }
+            
+            // Add cursor
+            timelineCursor = document.createElement('div');
+            timelineCursor.className = 'timeline-cursor';
+            timeline.appendChild(timelineCursor);
+        }
+        
+        // Create final segments timeline
+        function createFinalTimeline(finalSegs, duration) {
+            const ft = document.getElementById('finalTimeline');
+            if (!ft) return;
+            
+            ft.innerHTML = '';
+            finalSegments = finalSegs;
+            
+            finalSegs.forEach((seg, idx) => {
+                if (seg.startTimeMs == null || seg.endTimeMs == null) return;
+                
+                const el = document.createElement('div');
+                el.className = 'final-timeline-segment';
+                const s = seg.startTimeMs / 1000;
+                const d = (seg.endTimeMs - seg.startTimeMs) / 1000;
+                el.style.left = `${(s / duration) * 100}%`;
+                el.style.width = `${(d / duration) * 100}%`;
+                el.textContent = seg.sellingPoint?.substring(0, 15) || `S${idx + 1}`;
+                el.onclick = () => {
+                    if (videoPlayer) videoPlayer.currentTime = s;
+                };
+                ft.appendChild(el);
+            });
+            
+            finalTimelineCursor = document.createElement('div');
+            finalTimelineCursor.className = 'final-timeline-cursor';
+            ft.appendChild(finalTimelineCursor);
+        }
+        
+        // Update timeline cursors
+        function updateTimelineCursor() {
+            if (!videoPlayer || !videoDuration) return;
+            
+            const pos = (videoPlayer.currentTime / videoDuration) * 100;
+            
+            if (timelineCursor) {
+                timelineCursor.style.left = `${pos}%`;
+            }
+            
+            if (finalTimelineCursor) {
+                finalTimelineCursor.style.left = `${pos}%`;
+            }
+            
+            // Update time display
+            const timeDisplay = document.getElementById('timeDisplay');
+            if (timeDisplay) {
+                const current = formatTime(videoPlayer.currentTime);
+                const total = formatTime(videoDuration);
+                timeDisplay.textContent = `${current} / ${total}`;
+            }
+        }
+        
+        // Toggle play/pause
+        function togglePlayPause() {
+            if (!videoPlayer) return;
+            
+            if (videoPlayer.paused) {
+                videoPlayer.play();
+            } else {
+                videoPlayer.pause();
+            }
+        }
+        
+        // Seek to segment
+        function seekToSegment(timeMs) {
+            if (!videoPlayer) return;
+            
+            videoPlayer.currentTime = timeMs / 1000;
+            
+            // Update active segment highlighting
+            document.querySelectorAll('.segment-item-clickable').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Find and highlight the clicked segment
+            event.target.closest('.segment-item-clickable')?.classList.add('active');
         }
         
         // Initialize WebSocket connection
@@ -1211,7 +1312,6 @@
             
             ws.onclose = () => {
                 console.log('WebSocket disconnected');
-                // Reconnect after 3 seconds
                 setTimeout(initWebSocket, 3000);
             };
         }
@@ -1221,17 +1321,14 @@
             const uploadArea = document.getElementById('uploadArea');
             const fileInput = document.getElementById('fileInput');
             
-            // Click to browse
             uploadArea.addEventListener('click', () => {
                 fileInput.click();
             });
             
-            // File input change
             fileInput.addEventListener('change', (e) => {
                 handleFiles(e.target.files);
             });
             
-            // Drag and drop
             uploadArea.addEventListener('dragover', (e) => {
                 e.preventDefault();
                 uploadArea.classList.add('drag-over');
@@ -1261,7 +1358,6 @@
             const progressFill = document.getElementById('progressFill');
             const uploadStatus = document.getElementById('uploadStatus');
             
-            // Show progress
             uploadProgress.style.display = 'block';
             uploadStatus.textContent = `Uploading ${file.name}...`;
             
@@ -1271,7 +1367,6 @@
             try {
                 const xhr = new XMLHttpRequest();
                 
-                // Track upload progress
                 xhr.upload.addEventListener('progress', (e) => {
                     if (e.lengthComputable) {
                         const percentComplete = (e.loaded / e.total) * 100;
@@ -1279,19 +1374,16 @@
                     }
                 });
                 
-                // Handle completion
                 xhr.addEventListener('load', () => {
                     if (xhr.status === 200) {
                         const response = JSON.parse(xhr.responseText);
                         
-                        // Add to recent uploads
                         recentUploads.unshift({
                             original: response.original_filename,
                             saved: response.saved_filename,
                             size: response.video.size_mb
                         });
                         
-                        // Keep only last 5 uploads
                         recentUploads = recentUploads.slice(0, 5);
                         updateRecentUploads();
                         
@@ -1302,7 +1394,6 @@
                         showToast(`Upload failed: ${error.detail}`, 'error');
                     }
                     
-                    // Hide progress after a delay
                     setTimeout(() => {
                         uploadProgress.style.display = 'none';
                         progressFill.style.width = '0%';
@@ -1314,7 +1405,6 @@
                     uploadProgress.style.display = 'none';
                 });
                 
-                // Send request
                 xhr.open('POST', '/api/upload');
                 xhr.send(formData);
                 
@@ -1476,10 +1566,10 @@
                                     ${status.status === 'processing' ? 'disabled' : ''}>
                                 <i class="fas fa-play"></i> Process
                             </button>
-                            ${status.status === 'completed' ? 
-                                `<button class="btn btn-secondary" onclick="viewResults('${video.name}')">
+                            ${ (status.status === 'completed' || video.results_available) ? `
+                                <button class="btn btn-secondary" onclick="viewResults('${video.name}')">
                                     <i class="fas fa-chart-bar"></i> Results
-                                </button>` : ''}
+                                </button>` : '' }
                             <button class="btn delete-btn" onclick="deleteVideo('${video.name}')" 
                                     ${status.status === 'processing' ? 'disabled' : ''}>
                                 <i class="fas fa-trash"></i>
@@ -1696,7 +1786,7 @@
             }
         }
         
-        // View results for a video
+        // View results for a video (updated)
         async function viewResults(videoName) {
             try {
                 const response = await fetch(`/api/results/${videoName}`);
@@ -1705,37 +1795,56 @@
                 document.getElementById('modalTitle').textContent = `Results: ${videoName}`;
                 const modalBody = document.getElementById('modalBody');
                 
-                let content = '';
+                let content = '<div class="video-results-layout">';
                 
-                // Add video player
+                // Left column - Video player and timeline
                 content += `
-                    <div class="result-section">
+                    <div class="video-section">
                         <h3><i class="fas fa-play-circle"></i> Video Preview</h3>
-                        <div class="video-player-container">
-                            <video id="videoPlayer" class="video-player" controls>
-                                <source src="/inputs/${videoName}" type="video/mp4">
-                                Your browser does not support the video tag.
-                            </video>
+                        <div class="video-player-wrapper">
+                            <div class="video-player-container">
+                                <video id="videoPlayer" class="video-player" controls>
+                                    <source src="/inputs/${videoName}" type="video/mp4">
+                                    Your browser does not support the video tag.
+                                </video>
+                            </div>
+                            
                             <div class="video-controls">
                                 <button id="playPauseBtn" class="play-pause-btn" onclick="togglePlayPause()">
                                     <i class="fas fa-play"></i> Play
                                 </button>
                                 <span id="timeDisplay" class="time-display">0:00 / 0:00</span>
+                                <div class="timeline-zoom-controls">
+                                    <button class="zoom-btn" onclick="zoomTimeline(0.8)">
+                                        <i class="fas fa-search-minus"></i>
+                                    </button>
+                                    <button class="zoom-btn" onclick="zoomTimeline(1.25)">
+                                        <i class="fas fa-search-plus"></i>
+                                    </button>
+                                    <button class="zoom-btn" onclick="resetTimelineZoom()">
+                                        <i class="fas fa-compress"></i>
+                                    </button>
+                                </div>
                             </div>
-                        </div>
-                        
-                        <div class="timeline-container">
-                            <div id="timeline" class="timeline"></div>
+                            
+                            <div class="timeline-container">
+                                <div id="timeline" class="timeline"></div>
+                            </div>
+                            <div class="final-timeline-container">
+                                <div id="finalTimeline" class="final-timeline"></div>
+                            </div>
                         </div>
                         <div id="segmentTooltip" class="segment-info-tooltip"></div>
                     </div>
                 `;
                 
+                // Right column - Selling points
+                content += '<div class="segments-section">';
+                
                 if (results.selling_points) {
                     content += `
-                        <div class="result-section">
-                            <h3><i class="fas fa-tags"></i> Selling Points</h3>
-                            <div class="segment-list-with-player">
+                        <h3><i class="fas fa-tags"></i> Selling Points</h3>
+                        <div class="segment-list-with-player">
                     `;
                     
                     results.selling_points.selling_points.forEach((sp, index) => {
@@ -1749,25 +1858,23 @@
                                  ${hasTime ? `onclick="seekToSegment(${sp.startTime * 1000})"` : ''}>
                                 <div class="segment-item-header">
                                     <span class="segment-item-content">${sp.content}</span>
-                                    <div>
-                                        <span class="segment-item-time">${timeStr}</span>
-                                    </div>
+                                    <span class="segment-item-time">${timeStr}</span>
                                 </div>
                             </div>
                         `;
                     });
                     
-                    content += `
-                            </div>
-                        </div>
-                    `;
+                    content += '</div>';
                 }
                 
+                content += '</div></div>'; // Close right column and layout
+                
+                // Analysis statistics below
                 if (results.merged_segments) {
                     content += `
-                        <div class="result-section">
+                        <div class="result-section" style="margin-top: 30px;">
                             <h3><i class="fas fa-object-group"></i> Segment Analysis</h3>
-                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px;">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
                                 <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; text-align: center;">
                                     <div style="font-size: 2rem; font-weight: 700; color: #2196F3;">${results.merged_segments.merged_segments.length}</div>
                                     <div style="color: #666;">Merged Segments</div>
@@ -1782,7 +1889,7 @@
                                 </div>
                             </div>
                             <div class="visualization-container">
-                                <img src="/api/visualization/${videoName}" alt="Segments Visualization">
+                                <img src="/api/visualization/${videoName}" alt="Segments Visualization" style="max-width: 100%; height: auto;">
                             </div>
                         </div>
                     `;
@@ -1793,15 +1900,15 @@
                 
                 // Initialize video player after modal is shown
                 setTimeout(() => {
-                    videoPlayer = document.getElementById('videoPlayer');
+                    initializeVideoPlayer(videoName);
+                    
                     if (videoPlayer) {
-                        initializeVideoPlayer(videoName);
-                        
                         // Set up video event listeners
                         videoPlayer.addEventListener('loadedmetadata', () => {
                             videoDuration = videoPlayer.duration;
                             if (results.merged_segments) {
                                 createTimeline(results.merged_segments, videoDuration);
+                                createFinalTimeline(results.merged_segments.final_segments, videoDuration);
                             }
                             updateTimelineCursor();
                         });
@@ -1826,125 +1933,51 @@
         
         // Close modal (updated)
         function closeModal() {
-            // Clean up video player
             if (videoPlayer) {
                 videoPlayer.pause();
                 videoPlayer = null;
             }
             timelineCursor = null;
+            finalTimelineCursor = null;
             currentVideoName = null;
             videoDuration = 0;
             segments = [];
+            finalSegments = [];
             
             document.getElementById('resultsModal').style.display = 'none';
         }
         
-        // Format time from seconds to MM:SS
-        function formatTime(seconds) {
-            const minutes = Math.floor(seconds / 60);
-            const secs = Math.floor(seconds % 60);
-            return `${minutes}:${secs.toString().padStart(2, '0')}`;
+        // Refresh video list every 5 seconds to update statuses
+        setInterval(loadVideos, 5000);
+        
+        // Timeline zoom functionality
+        let timelineZoom = 1;
+        
+        function zoomTimeline(factor) {
+            timelineZoom *= factor;
+            timelineZoom = Math.max(0.5, Math.min(timelineZoom, 3));
+            applyTimelineZoom();
         }
         
-        // Initialize video player
-        function initializeVideoPlayer(videoName) {
-            currentVideoName = videoName;
-            const videoUrl = `/inputs/${videoName}`;
-            
-            if (videoPlayer) {
-                videoPlayer.src = videoUrl;
-                videoPlayer.load();
-            }
+        function resetTimelineZoom() {
+            timelineZoom = 1;
+            applyTimelineZoom();
         }
         
-        // Create timeline visualization
-        function createTimeline(mergedSegments, duration) {
+        function applyTimelineZoom() {
             const timeline = document.getElementById('timeline');
-            if (!timeline) return;
-            
-            timeline.innerHTML = '';
-            videoDuration = duration;
-            
-            // Create time markers
-            const timeMarkersContainer = document.createElement('div');
-            timeMarkersContainer.className = 'timeline-time-markers';
-            
-            // Add time markers every 10 seconds
-            for (let i = 0; i <= duration; i += 10) {
-                const marker = document.createElement('div');
-                marker.className = 'time-marker';
-                marker.style.left = `${(i / duration) * 100}%`;
-                marker.textContent = formatTime(i);
-                timeMarkersContainer.appendChild(marker);
+            const finalTimeline = document.getElementById('finalTimeline');
+            if (timeline) {
+                timeline.style.width = `${100 * timelineZoom}%`;
+                timeline.style.minWidth = `${100 * timelineZoom}%`;
             }
-            timeline.appendChild(timeMarkersContainer);
-            
-            // Create segments
-            segments = [];
-            
-            // Add merged segments
-            if (mergedSegments.merged_segments) {
-                mergedSegments.merged_segments.forEach((segment, index) => {
-                    if (segment.startTimeMs !== null && segment.endTimeMs !== null) {
-                        const segmentEl = createTimelineSegment(segment, 'merged', index);
-                        timeline.appendChild(segmentEl);
-                        segments.push({...segment, type: 'merged', element: segmentEl});
-                    }
-                });
+            if (finalTimeline) {
+                finalTimeline.style.width = `${100 * timelineZoom}%`;
+                finalTimeline.style.minWidth = `${100 * timelineZoom}%`;
             }
-            
-            // Add unmerged segments
-            if (mergedSegments.unmerged_segments) {
-                mergedSegments.unmerged_segments.forEach((segment, index) => {
-                    if (segment.startTimeMs !== null && segment.endTimeMs !== null) {
-                        const segmentEl = createTimelineSegment(segment, 'unmerged', index);
-                        timeline.appendChild(segmentEl);
-                        segments.push({...segment, type: 'unmerged', element: segmentEl});
-                    }
-                });
-            }
-            
-            // Create timeline cursor
-            timelineCursor = document.createElement('div');
-            timelineCursor.className = 'timeline-cursor';
-            timeline.appendChild(timelineCursor);
         }
         
-        // Create timeline segment element
-        function createTimelineSegment(segment, type, index) {
-            const segmentEl = document.createElement('div');
-            segmentEl.className = `timeline-segment ${type}`;
-            
-            const startTime = segment.startTimeMs / 1000;
-            const endTime = segment.endTimeMs / 1000;
-            const duration = endTime - startTime;
-            
-            segmentEl.style.left = `${(startTime / videoDuration) * 100}%`;
-            segmentEl.style.width = `${(duration / videoDuration) * 100}%`;
-            
-            const label = segment.content || segment.sellingPoint || `Segment ${index + 1}`;
-            segmentEl.textContent = label;
-            
-            // Click to seek
-            segmentEl.addEventListener('click', () => {
-                if (videoPlayer) {
-                    videoPlayer.currentTime = startTime;
-                }
-            });
-            
-            // Hover tooltip
-            segmentEl.addEventListener('mouseenter', (e) => {
-                showSegmentTooltip(e, segment, type);
-            });
-            
-            segmentEl.addEventListener('mouseleave', () => {
-                hideSegmentTooltip();
-            });
-            
-            return segmentEl;
-        }
-        
-        // Show segment tooltip
+        // Show segment tooltip with fixed positioning
         function showSegmentTooltip(event, segment, type) {
             const tooltip = document.getElementById('segmentTooltip');
             if (!tooltip) return;
@@ -1960,220 +1993,54 @@
             `;
             
             tooltip.style.display = 'block';
-            tooltip.style.left = event.pageX + 'px';
-            tooltip.style.top = (event.pageY - tooltip.offsetHeight - 10) + 'px';
-        }
-        
-        // Hide segment tooltip
-        function hideSegmentTooltip() {
-            const tooltip = document.getElementById('segmentTooltip');
-            if (tooltip) {
-                tooltip.style.display = 'none';
-            }
-        }
-        
-        // Update timeline cursor position
-        function updateTimelineCursor() {
-            if (!videoPlayer || !timelineCursor || !videoDuration) return;
             
-            const currentTime = videoPlayer.currentTime;
-            const position = (currentTime / videoDuration) * 100;
-            timelineCursor.style.left = `${position}%`;
-            
-            // Update time display
-            const timeDisplay = document.getElementById('timeDisplay');
-            if (timeDisplay) {
-                timeDisplay.textContent = `${formatTime(currentTime)} / ${formatTime(videoDuration)}`;
-            }
-            
-            // Highlight active segment
-            updateActiveSegment(currentTime);
+            const rect = event.target.getBoundingClientRect();
+            tooltip.style.left = rect.left + 'px';
+            tooltip.style.top = (rect.top - tooltip.offsetHeight - 10) + 'px';
         }
         
-        // Update active segment highlighting
-        function updateActiveSegment(currentTime) {
-            const currentTimeMs = currentTime * 1000;
-            
-            document.querySelectorAll('.segment-item-clickable').forEach((item, index) => {
-                const segment = segments[index];
-                if (segment && segment.startTimeMs <= currentTimeMs && currentTimeMs <= segment.endTimeMs) {
-                    item.classList.add('active');
-                } else {
-                    item.classList.remove('active');
-                }
-            });
+        // --------------------------------- create final-segments strip
+        function createFinalTimeline(finalSegs,duration){
+            const ft=document.getElementById('finalTimeline')
+            if(!ft){return}
+            ft.innerHTML=''
+            finalSegments=finalSegs
+            finalSegs.forEach((seg,idx)=>{
+                if(seg.startTimeMs==null||seg.endTimeMs==null){return}
+                const el=document.createElement('div')
+                el.className='final-timeline-segment'
+                const s=seg.startTimeMs/1000
+                const d=(seg.endTimeMs-seg.startTimeMs)/1000
+                el.style.left=`${(s/duration)*100}%`
+                el.style.width=`${(d/duration)*100}%`
+                el.textContent=seg.sellingPoint||`S${idx+1}`
+                el.onclick=()=>{if(videoPlayer)videoPlayer.currentTime=s}
+                ft.appendChild(el)
+            })
+            finalTimelineCursor=document.createElement('div')
+            finalTimelineCursor.className='final-timeline-cursor'
+            ft.appendChild(finalTimelineCursor)
         }
-        
-        // Play/pause video
-        function togglePlayPause() {
-            if (!videoPlayer) return;
-            
-            const btn = document.getElementById('playPauseBtn');
-            if (videoPlayer.paused) {
-                videoPlayer.play();
-                btn.innerHTML = '<i class="fas fa-pause"></i> Pause';
-            } else {
-                videoPlayer.pause();
-                btn.innerHTML = '<i class="fas fa-play"></i> Play';
-            }
+        // --------------------------------- update cursors
+        function updateTimelineCursor(){
+            if(!videoPlayer||!videoDuration){return}
+            const pos=(videoPlayer.currentTime/videoDuration)*100
+            if(timelineCursor) timelineCursor.style.left=`${pos}%`
+            if(finalTimelineCursor) finalTimelineCursor.style.left=`${pos}%`
+            // ...existing code that updates time display & active segments...
         }
-        
-        // Seek to segment
-        function seekToSegment(startTimeMs) {
-            if (videoPlayer) {
-                videoPlayer.currentTime = startTimeMs / 1000;
-                if (videoPlayer.paused) {
-                    videoPlayer.play();
-                    document.getElementById('playPauseBtn').innerHTML = '<i class="fas fa-pause"></i> Pause';
-                }
-            }
+        // --------------------------------- viewResults patch (add call)
+        if(results.merged_segments){
+            createTimeline(results.merged_segments,videoDuration)
+            createFinalTimeline(results.merged_segments.final_segments,videoDuration)
         }
-        
-        // View results for a video (updated)
-        async function viewResults(videoName) {
-            try {
-                const response = await fetch(`/api/results/${videoName}`);
-                const results = await response.json();
-                
-                document.getElementById('modalTitle').textContent = `Results: ${videoName}`;
-                const modalBody = document.getElementById('modalBody');
-                
-                let content = '';
-                
-                // Add video player
-                content += `
-                    <div class="result-section">
-                        <h3><i class="fas fa-play-circle"></i> Video Preview</h3>
-                        <div class="video-player-container">
-                            <video id="videoPlayer" class="video-player" controls>
-                                <source src="/inputs/${videoName}" type="video/mp4">
-                                Your browser does not support the video tag.
-                            </video>
-                            <div class="video-controls">
-                                <button id="playPauseBtn" class="play-pause-btn" onclick="togglePlayPause()">
-                                    <i class="fas fa-play"></i> Play
-                                </button>
-                                <span id="timeDisplay" class="time-display">0:00 / 0:00</span>
-                            </div>
-                        </div>
-                        
-                        <div class="timeline-container">
-                            <div id="timeline" class="timeline"></div>
-                        </div>
-                        <div id="segmentTooltip" class="segment-info-tooltip"></div>
-                    </div>
-                `;
-                
-                if (results.selling_points) {
-                    content += `
-                        <div class="result-section">
-                            <h3><i class="fas fa-tags"></i> Selling Points</h3>
-                            <div class="segment-list-with-player">
-                    `;
-                    
-                    results.selling_points.selling_points.forEach((sp, index) => {
-                        const hasTime = sp.startTime !== null && sp.endTime !== null;
-                        const timeStr = hasTime ? 
-                            `${sp.startTime.toFixed(1)}s - ${sp.endTime.toFixed(1)}s` : 
-                            'No timestamp';
-                        
-                        content += `
-                            <div class="segment-item-clickable" 
-                                 ${hasTime ? `onclick="seekToSegment(${sp.startTime * 1000})"` : ''}>
-                                <div class="segment-item-header">
-                                    <span class="segment-item-content">${sp.content}</span>
-                                    <div>
-                                        <span class="segment-item-time">${timeStr}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                    });
-                    
-                    content += `
-                            </div>
-                        </div>
-                    `;
-                }
-                
-                if (results.merged_segments) {
-                    content += `
-                        <div class="result-section">
-                            <h3><i class="fas fa-object-group"></i> Segment Analysis</h3>
-                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px;">
-                                <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; text-align: center;">
-                                    <div style="font-size: 2rem; font-weight: 700; color: #2196F3;">${results.merged_segments.merged_segments.length}</div>
-                                    <div style="color: #666;">Merged Segments</div>
-                                </div>
-                                <div style="background: #f3e5f5; padding: 15px; border-radius: 8px; text-align: center;">
-                                    <div style="font-size: 2rem; font-weight: 700; color: #9C27B0;">${results.merged_segments.unmerged_segments.length}</div>
-                                    <div style="color: #666;">Unmerged Segments</div>
-                                </div>
-                                <div style="background: #fff3e0; padding: 15px; border-radius: 8px; text-align: center;">
-                                    <div style="font-size: 2rem; font-weight: 700; color: #FF9800;">${results.merged_segments.final_segments.length}</div>
-                                    <div style="color: #666;">Final Segments</div>
-                                </div>
-                            </div>
-                            <div class="visualization-container">
-                                <img src="/api/visualization/${videoName}" alt="Segments Visualization">
-                            </div>
-                        </div>
-                    `;
-                }
-                
-                modalBody.innerHTML = content;
-                document.getElementById('resultsModal').style.display = 'block';
-                
-                // Initialize video player after modal is shown
-                setTimeout(() => {
-                    videoPlayer = document.getElementById('videoPlayer');
-                    if (videoPlayer) {
-                        initializeVideoPlayer(videoName);
-                        
-                        // Set up video event listeners
-                        videoPlayer.addEventListener('loadedmetadata', () => {
-                            videoDuration = videoPlayer.duration;
-                            if (results.merged_segments) {
-                                createTimeline(results.merged_segments, videoDuration);
-                            }
-                            updateTimelineCursor();
-                        });
-                        
-                        videoPlayer.addEventListener('timeupdate', updateTimelineCursor);
-                        
-                        videoPlayer.addEventListener('play', () => {
-                            document.getElementById('playPauseBtn').innerHTML = '<i class="fas fa-pause"></i> Pause';
-                        });
-                        
-                        videoPlayer.addEventListener('pause', () => {
-                            document.getElementById('playPauseBtn').innerHTML = '<i class="fas fa-play"></i> Play';
-                        });
-                    }
-                }, 100);
-                
-            } catch (error) {
-                console.error('Failed to load results:', error);
-                alert('Failed to load results');
-            }
+        // --------------------------------- reset on modal close
+        function closeModal(){
+            // ...existing code...
+            finalTimelineCursor=null
+            finalSegments=[]
+            // ...existing code...
         }
-        
-        // Close modal (updated)
-        function closeModal() {
-            // Clean up video player
-            if (videoPlayer) {
-                videoPlayer.pause();
-                videoPlayer = null;
-            }
-            timelineCursor = null;
-            currentVideoName = null;
-            videoDuration = 0;
-            segments = [];
-            
-            document.getElementById('resultsModal').style.display = 'none';
-        }
-        
-        // Refresh video list every 5 seconds to update statuses
-        setInterval(loadVideos, 5000);
     </script>
 </body>
 </html>
