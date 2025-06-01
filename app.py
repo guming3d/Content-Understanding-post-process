@@ -500,7 +500,6 @@ def merge_segments_by_selling_points(content_json, selling_points_json, time_dev
         }
         
         result["merged_segments"].append(merged_segment)
-    
     # Only include segments that weren't merged in the unmerged_segments list
     for i, segment in enumerate(video_segments):
         if i not in merged_segment_indices:
@@ -768,102 +767,239 @@ def create_segments_visualization(merged_segments_path: str, output_path: str) -
             if seg.get('endTimeMs'):
                 max_time = max(max_time, seg['endTimeMs'])
         
+        # Also check overlapping segments
+        for seg in merged_segments:
+            for overlap in seg.get('overlapping_segments', []):
+                if overlap.get('endTimeMs'):
+                    max_time = max(max_time, overlap['endTimeMs'])
+        
         # Convert to seconds
         max_time_seconds = max_time / 1000
         
-        # Create figure and axis
-        fig, ax = plt.subplots(figsize=(14, 8))
+        # Set professional tech style
+        plt.style.use('dark_background')
         
-        # Define colors
-        merged_color = '#2E86AB'  # Blue
-        unmerged_color = '#A23B72'  # Purple
-        final_color = '#F18F01'  # Orange
+        # Create figure and axis with tech-style background
+        fig, ax = plt.subplots(figsize=(16, 10))
+        fig.patch.set_facecolor('#0a0a0a')
+        ax.set_facecolor('#0f0f0f')
+        
+        # Define tech-style colors
+        merged_color = '#00D9FF'      # Cyan
+        overlap_color = '#FF006E'     # Hot pink
+        unmerged_color = '#8338EC'    # Purple
+        final_color = '#FFB700'       # Gold
+        text_color = '#E0E0E0'        # Light gray
+        grid_color = '#2A2A2A'        # Dark gray
         
         # Height settings
-        bar_height = 0.8
-        y_positions = {'merged': 3, 'unmerged': 2, 'final': 1}
+        bar_height = 0.6
+        overlap_height = 0.4
+        y_positions = {
+            'merged': 4, 
+            'overlapping': 3.3,
+            'unmerged': 2.3, 
+            'final': 1.3
+        }
         
         # Plot merged segments
         for seg in merged_segments:
             if seg.get('startTimeMs') is not None and seg.get('endTimeMs') is not None:
                 start = seg['startTimeMs'] / 1000
                 duration = (seg['endTimeMs'] - seg['startTimeMs']) / 1000
+                
+                # Draw merged segment with gradient effect
                 rect = patches.Rectangle(
                     (start, y_positions['merged'] - bar_height/2),
                     duration, bar_height,
-                    linewidth=1, edgecolor='black', facecolor=merged_color,
-                    alpha=0.7
+                    linewidth=0, facecolor=merged_color,
+                    alpha=0.8
                 )
                 ax.add_patch(rect)
                 
+                # Add glow effect
+                glow_rect = patches.Rectangle(
+                    (start, y_positions['merged'] - bar_height/2),
+                    duration, bar_height,
+                    linewidth=2, edgecolor=merged_color, facecolor='none',
+                    alpha=0.3
+                )
+                ax.add_patch(glow_rect)
+                
                 # Add label
-                content = seg.get('content', '')[:30] + '...' if len(seg.get('content', '')) > 30 else seg.get('content', '')
+                content = seg.get('content', '')
+                if len(content) > 40:
+                    content = content[:37] + '...'
                 ax.text(start + duration/2, y_positions['merged'], content,
-                       ha='center', va='center', fontsize=8, rotation=0)
+                       ha='center', va='center', fontsize=9, color=text_color,
+                       weight='bold', bbox=dict(boxstyle='round,pad=0.3', 
+                                              facecolor='#1a1a1a', alpha=0.8))
+                
+                # Plot overlapping segments
+                for i, overlap in enumerate(seg.get('overlapping_segments', [])):
+                    if overlap.get('startTimeMs') is not None and overlap.get('endTimeMs') is not None:
+                        overlap_start = overlap['startTimeMs'] / 1000
+                        overlap_duration = (overlap['endTimeMs'] - overlap['startTimeMs']) / 1000
+                        
+                        # Draw overlapping segment with better edge styling
+                        overlap_rect = patches.Rectangle(
+                            (overlap_start, y_positions['overlapping'] - overlap_height/2),
+                            overlap_duration, overlap_height,
+                            linewidth=2, edgecolor='#FFFFFF', facecolor=overlap_color,
+                            alpha=0.7
+                        )
+                        ax.add_patch(overlap_rect)
+                        
+                        # Add inner glow effect
+                        inner_glow = patches.Rectangle(
+                            (overlap_start + 0.01, y_positions['overlapping'] - overlap_height/2 + 0.02),
+                            max(0.01, overlap_duration - 0.02), max(0.01, overlap_height - 0.04),
+                            linewidth=1, edgecolor=overlap_color, facecolor='none',
+                            alpha=0.5
+                        )
+                        ax.add_patch(inner_glow)
+                        
+                        # Add segment label if duration is sufficient
+                        if overlap_duration > 0.5:  # Only add text if segment is wide enough
+                            overlap_text = overlap.get('sellingPoint', f'O{i+1}')
+                            if len(overlap_text) > 15:
+                                overlap_text = overlap_text[:12] + '...'
+                            ax.text(overlap_start + overlap_duration/2, y_positions['overlapping'], 
+                                   overlap_text, ha='center', va='center', fontsize=7, 
+                                   color='#FFFFFF', weight='bold',
+                                   bbox=dict(boxstyle='round,pad=0.2', facecolor='#000000', 
+                                           alpha=0.6, edgecolor='none'))
+                        
+                        # Add connection line with better styling
+                        connection_x = [start + duration/2, overlap_start + overlap_duration/2]
+                        connection_y = [y_positions['merged'] - bar_height/2, 
+                                      y_positions['overlapping'] + overlap_height/2]
+                        ax.plot(connection_x, connection_y, color='#FFFFFF', 
+                               alpha=0.4, linestyle='--', linewidth=1.5)
         
         # Plot unmerged segments
         for seg in unmerged_segments:
             if seg.get('startTimeMs') is not None and seg.get('endTimeMs') is not None:
                 start = seg['startTimeMs'] / 1000
                 duration = (seg['endTimeMs'] - seg['startTimeMs']) / 1000
+                
                 rect = patches.Rectangle(
                     (start, y_positions['unmerged'] - bar_height/2),
                     duration, bar_height,
-                    linewidth=1, edgecolor='black', facecolor=unmerged_color,
-                    alpha=0.7
+                    linewidth=0, facecolor=unmerged_color,
+                    alpha=0.8
                 )
                 ax.add_patch(rect)
                 
+                # Add glow effect
+                glow_rect = patches.Rectangle(
+                    (start, y_positions['unmerged'] - bar_height/2),
+                    duration, bar_height,
+                    linewidth=2, edgecolor=unmerged_color, facecolor='none',
+                    alpha=0.3
+                )
+                ax.add_patch(glow_rect)
+                
                 # Add label
-                selling_point = seg.get('sellingPoint', '')[:20] + '...' if len(seg.get('sellingPoint', '')) > 20 else seg.get('sellingPoint', '')
+                selling_point = seg.get('sellingPoint', '')
+                if selling_point and len(selling_point) > 30:
+                    selling_point = selling_point[:27] + '...'
                 if selling_point:
                     ax.text(start + duration/2, y_positions['unmerged'], selling_point,
-                           ha='center', va='center', fontsize=8, rotation=0)
+                           ha='center', va='center', fontsize=8, color=text_color,
+                           bbox=dict(boxstyle='round,pad=0.3', 
+                                   facecolor='#1a1a1a', alpha=0.8))
         
         # Plot final segments
         for seg in final_segments:
             if seg.get('startTimeMs') is not None and seg.get('endTimeMs') is not None:
                 start = seg['startTimeMs'] / 1000
                 duration = (seg['endTimeMs'] - seg['startTimeMs']) / 1000
+                
                 rect = patches.Rectangle(
                     (start, y_positions['final'] - bar_height/2),
                     duration, bar_height,
-                    linewidth=1, edgecolor='black', facecolor=final_color,
-                    alpha=0.7
+                    linewidth=0, facecolor=final_color,
+                    alpha=0.8
                 )
                 ax.add_patch(rect)
                 
+                # Add glow effect
+                glow_rect = patches.Rectangle(
+                    (start, y_positions['final'] - bar_height/2),
+                    duration, bar_height,
+                    linewidth=2, edgecolor=final_color, facecolor='none',
+                    alpha=0.3
+                )
+                ax.add_patch(glow_rect)
+                
                 # Add label
-                selling_point = seg.get('sellingPoint', '')[:20] + '...' if len(seg.get('sellingPoint', '')) > 20 else seg.get('sellingPoint', '')
+                selling_point = seg.get('sellingPoint', '')
+                if selling_point and len(selling_point) > 30:
+                    selling_point = selling_point[:27] + '...'
                 if selling_point:
                     ax.text(start + duration/2, y_positions['final'], selling_point,
-                           ha='center', va='center', fontsize=8, rotation=0)
+                           ha='center', va='center', fontsize=8, color=text_color,
+                           bbox=dict(boxstyle='round,pad=0.3', 
+                                   facecolor='#1a1a1a', alpha=0.8))
         
-        # Configure plot
+        # Configure plot with tech style
         ax.set_xlim(0, max_time_seconds * 1.05)
-        ax.set_ylim(0.5, 3.5)
-        ax.set_xlabel('Time (seconds)', fontsize=12)
-        ax.set_ylabel('Segment Type', fontsize=12)
-        ax.set_title('Video Segments Visualization', fontsize=14, fontweight='bold')
+        ax.set_ylim(0.7, 4.7)
+        ax.set_xlabel('Time (seconds)', fontsize=12, color=text_color, weight='bold')
+        ax.set_ylabel('Segment Type', fontsize=12, color=text_color, weight='bold')
+        ax.set_title('Video Segments Analysis', fontsize=18, fontweight='bold', 
+                    color=text_color, pad=20)
         
         # Set y-axis labels
-        ax.set_yticks([1, 2, 3])
-        ax.set_yticklabels(['Final Segments', 'Unmerged Segments', 'Merged Segments'])
+        ax.set_yticks([1.3, 2.3, 3.3, 4])
+        ax.set_yticklabels(['Final Segments', 'Unmerged Segments', 
+                           'Overlapping Segments', 'Merged Segments'], 
+                          color=text_color)
         
-        # Add legend
+        # Style the axes
+        ax.spines['bottom'].set_color(grid_color)
+        ax.spines['left'].set_color(grid_color)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.tick_params(colors=text_color, which='both')
+        
+        # Add tech-style grid
+        ax.grid(True, axis='x', alpha=0.2, color=grid_color, linestyle='-')
+        ax.grid(True, axis='y', alpha=0.1, color=grid_color, linestyle='-')
+        
+        # Add legend with custom styling
         legend_elements = [
-            patches.Patch(facecolor=merged_color, alpha=0.7, label='Merged Segments'),
-            patches.Patch(facecolor=unmerged_color, alpha=0.7, label='Unmerged Segments'),
-            patches.Patch(facecolor=final_color, alpha=0.7, label='Final Segments')
+            patches.Patch(facecolor=merged_color, alpha=0.8, label='Merged Segments'),
+            patches.Patch(facecolor=overlap_color, alpha=0.6, label='Overlapping Segments'),
+            patches.Patch(facecolor=unmerged_color, alpha=0.8, label='Unmerged Segments'),
+            patches.Patch(facecolor=final_color, alpha=0.8, label='Final Segments')
         ]
-        ax.legend(handles=legend_elements, loc='upper right')
+        legend = ax.legend(handles=legend_elements, loc='upper right', 
+                         facecolor='#1a1a1a', edgecolor=grid_color,
+                         labelcolor=text_color, fontsize=10)
+        legend.get_frame().set_alpha(0.9)
         
-        # Add grid
-        ax.grid(True, axis='x', alpha=0.3)
+        # Add time markers
+        time_interval = max(10, int(max_time_seconds / 10))
+        for t in range(0, int(max_time_seconds) + 1, time_interval):
+            ax.axvline(x=t, color=grid_color, alpha=0.3, linestyle=':', linewidth=0.5)
+            ax.text(t, 0.5, f'{t}s', ha='center', va='center', 
+                   fontsize=8, color=text_color, alpha=0.5)
+        
+        # Add statistics box
+        stats_text = (f"Total Segments: {len(merged_segments) + len(unmerged_segments)}\n"
+                     f"Merged: {len(merged_segments)} | Unmerged: {len(unmerged_segments)} | "
+                     f"Final: {len(final_segments)}")
+        ax.text(0.02, 0.98, stats_text, transform=ax.transAxes,
+               fontsize=10, color=text_color, verticalalignment='top',
+               bbox=dict(boxstyle='round,pad=0.5', facecolor='#1a1a1a', 
+                        alpha=0.8, edgecolor=grid_color))
         
         # Tight layout and save
         plt.tight_layout()
-        plt.savefig(output_path, dpi=300, bbox_inches='tight')
+        plt.savefig(output_path, dpi=300, bbox_inches='tight', 
+                   facecolor='#0a0a0a', edgecolor='none')
         plt.close(fig)
         
         logging.info("Visualization saved to: %s", output_path, extra={"output_file": output_path})

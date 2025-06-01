@@ -1466,6 +1466,23 @@
     </header>
 
     <main class="container" role="main">
+        <!-- Videos Section -->
+        <section class="section" aria-labelledby="videos-heading">
+            <div class="section-header">
+                <h2 class="section-title" id="videos-heading">
+                    <i class="fas fa-film" aria-hidden="true"></i> Available Videos
+                </h2>
+            </div>
+            <div id="videoList" class="video-grid" role="grid" aria-label="Video list">
+                <!-- Videos will be loaded here -->
+            </div>
+            <div id="emptyState" class="empty-state" style="display: none;" role="status">
+                <i class="fas fa-folder-open" aria-hidden="true"></i>
+                <h3>No videos found</h3>
+                <p>Add video files to the inputs directory to get started</p>
+            </div>
+        </section>
+
         <!-- Upload Section -->
         <section class="upload-section" aria-labelledby="upload-heading">
             <h2 class="section-title" id="upload-heading">
@@ -1525,23 +1542,6 @@
                         aria-label="Process selected videos">
                     <i class="fas fa-play" aria-hidden="true"></i> Process Selected
                 </button>
-            </div>
-        </section>
-
-        <!-- Videos Section -->
-        <section class="section" aria-labelledby="videos-heading">
-            <div class="section-header">
-                <h2 class="section-title" id="videos-heading">
-                    <i class="fas fa-film" aria-hidden="true"></i> Available Videos
-                </h2>
-            </div>
-            <div id="videoList" class="video-grid" role="grid" aria-label="Video list">
-                <!-- Videos will be loaded here -->
-            </div>
-            <div id="emptyState" class="empty-state" style="display: none;" role="status">
-                <i class="fas fa-folder-open" aria-hidden="true"></i>
-                <h3>No videos found</h3>
-                <p>Add video files to the inputs directory to get started</p>
             </div>
         </section>
     </main>
