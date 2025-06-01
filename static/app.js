@@ -63,6 +63,17 @@ class VideoAnalysisApp {
                 this.switchTab(e.target.dataset.tab);
             });
         });
+        
+        // Close button for results modal
+        const closeButton = document.querySelector('#results-panel .close-btn') || 
+                           document.querySelector('#results-panel button[aria-label="Close"]') ||
+                           document.querySelector('#results-panel [data-close]');
+        
+        if (closeButton) {
+            closeButton.addEventListener('click', () => {
+                document.getElementById('results-panel').classList.add('hidden');
+            });
+        }
     }
 
     async loadVideos() {
