@@ -1025,14 +1025,15 @@ def generate_thumbnail(video_path: str, thumbnail_path: str, timestamp: float = 
         thumbnail_dir = Path(thumbnail_path).parent
         thumbnail_dir.mkdir(exist_ok=True)
         
-        # Generate thumbnail using ffmpeg
+        # Generate thumbnail using ffmpeg with proper aspect ratio preservation
+        # This will pad with black bars to maintain aspect ratio
         cmd = [
             'ffmpeg',
             '-i', video_path,
             '-ss', str(timestamp),  # Seek to timestamp
             '-vframes', '1',        # Extract 1 frame
             '-q:v', '2',           # High quality
-            '-vf', 'scale=w=320:h=240:force_original_aspect_ratio=decrease', # Maintain aspect ratio, fit within 320x240
+            '-vf', 'scale=320:240:force_original_aspect_ratio=decrease,pad=320:240:(ow-iw)/2:(oh-ih)/2:black',
             '-y',                  # Overwrite if exists
             thumbnail_path
         ]

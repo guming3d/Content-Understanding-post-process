@@ -140,6 +140,13 @@
             max-width: 1440px;
             margin: 0 auto;
             padding: 0 var(--spacing-horizontal-xxl);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left {
+            flex: 1;
         }
 
         .header h1 {
@@ -161,6 +168,37 @@
             font-size: var(--font-size-400);
             line-height: var(--line-height-400);
             color: var(--neutral-foreground-2);
+        }
+
+        .github-link {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-horizontal-s);
+            padding: var(--spacing-vertical-s) var(--spacing-horizontal-m);
+            background: var(--neutral-background-2);
+            border: 1px solid var(--neutral-stroke-2);
+            border-radius: var(--corner-radius-medium);
+            text-decoration: none;
+            color: var(--neutral-foreground-1);
+            font-size: var(--font-size-300);
+            font-weight: var(--font-weight-medium);
+            transition: all 0.1s ease;
+        }
+
+        .github-link:hover {
+            background: var(--neutral-background-3);
+            border-color: var(--neutral-stroke-accessible);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-2);
+        }
+
+        .github-link i {
+            font-size: var(--font-size-400);
+            color: var(--neutral-foreground-2);
+        }
+
+        .github-link span {
+            color: var(--neutral-foreground-1);
         }
 
         /* Upload Section */
@@ -1409,6 +1447,16 @@
                 font-size: var(--font-size-700);
             }
 
+            .header-content {
+                flex-direction: column;
+                gap: var(--spacing-vertical-m);
+                align-items: flex-start;
+            }
+
+            .github-link {
+                align-self: flex-start;
+            }
+
             .batch-controls {
                 flex-direction: column;
                 align-items: flex-start;
@@ -1460,8 +1508,18 @@
 <body>
     <header class="header" role="banner">
         <div class="header-content">
-            <h1><i class="fas fa-video" aria-hidden="true"></i> Video Analysis Dashboard</h1>
-            <p>Process and analyze videos with Azure AI Services</p>
+            <div class="header-left">
+                <h1><i class="fas fa-video" aria-hidden="true"></i> Video Analysis Dashboard</h1>
+                <p>Process and analyze videos with Azure AI Services</p>
+            </div>
+            <a href="https://github.com/guming3d/Video-segmentation-based-on-Azure-AI-Services/tree/UI-enhance" 
+               target="_blank" 
+               rel="noopener noreferrer" 
+               class="github-link"
+               aria-label="View source code on GitHub">
+                <i class="fab fa-github" aria-hidden="true"></i>
+                <span>View on GitHub</span>
+            </a>
         </div>
     </header>
 
@@ -1480,35 +1538,6 @@
                 <i class="fas fa-folder-open" aria-hidden="true"></i>
                 <h3>No videos found</h3>
                 <p>Add video files to the inputs directory to get started</p>
-            </div>
-        </section>
-
-        <!-- Upload Section -->
-        <section class="upload-section" aria-labelledby="upload-heading">
-            <h2 class="section-title" id="upload-heading">
-                <i class="fas fa-cloud-upload-alt" aria-hidden="true"></i> Upload Videos
-            </h2>
-            
-            <div class="upload-area" id="uploadArea" role="button" tabindex="0" 
-                 aria-label="Click or drag and drop video files here to upload">
-                <i class="fas fa-upload upload-icon" aria-hidden="true"></i>
-                <div class="upload-text">Drag and drop video files here</div>
-                <div class="upload-hint">or click to browse</div>
-                <input type="file" id="fileInput" class="file-input" 
-                       accept=".mp4,.avi,.mov,.mkv,.webm" multiple
-                       aria-label="Choose video files to upload">
-            </div>
-            
-            <div class="upload-progress" id="uploadProgress" role="progressbar" aria-hidden="true">
-                <div class="upload-progress-bar">
-                    <div class="upload-progress-fill" id="progressFill" style="width: 0%"></div>
-                </div>
-                <div class="upload-status" id="uploadStatus">Uploading...</div>
-            </div>
-            
-            <div class="recent-uploads" id="recentUploads" style="display: none;" aria-live="polite">
-                <h3 class="recent-uploads-title">Recent Uploads</h3>
-                <div id="recentUploadsList"></div>
             </div>
         </section>
 
@@ -1542,6 +1571,35 @@
                         aria-label="Process selected videos">
                     <i class="fas fa-play" aria-hidden="true"></i> Process Selected
                 </button>
+            </div>
+        </section>
+
+        <!-- Upload Section -->
+        <section class="upload-section" aria-labelledby="upload-heading">
+            <h2 class="section-title" id="upload-heading">
+                <i class="fas fa-cloud-upload-alt" aria-hidden="true"></i> Upload Videos
+            </h2>
+            
+            <div class="upload-area" id="uploadArea" role="button" tabindex="0" 
+                 aria-label="Click or drag and drop video files here to upload">
+                <i class="fas fa-upload upload-icon" aria-hidden="true"></i>
+                <div class="upload-text">Drag and drop video files here</div>
+                <div class="upload-hint">or click to browse</div>
+                <input type="file" id="fileInput" class="file-input" 
+                       accept=".mp4,.avi,.mov,.mkv,.webm" multiple
+                       aria-label="Choose video files to upload">
+            </div>
+            
+            <div class="upload-progress" id="uploadProgress" role="progressbar" aria-hidden="true">
+                <div class="upload-progress-bar">
+                    <div class="upload-progress-fill" id="progressFill" style="width: 0%"></div>
+                </div>
+                <div class="upload-status" id="uploadStatus">Uploading...</div>
+            </div>
+            
+            <div class="recent-uploads" id="recentUploads" style="display: none;" aria-live="polite">
+                <h3 class="recent-uploads-title">Recent Uploads</h3>
+                <div id="recentUploadsList"></div>
             </div>
         </section>
     </main>
