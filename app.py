@@ -776,30 +776,33 @@ def create_segments_visualization(merged_segments_path: str, output_path: str) -
         # Convert to seconds
         max_time_seconds = max_time / 1000
         
-        # Set professional tech style
-        plt.style.use('dark_background')
+        # Reset matplotlib style and use clean professional style
+        plt.style.use('default')
         
-        # Create figure and axis with tech-style background
+        # Create figure and axis with Fluent UI colors
         fig, ax = plt.subplots(figsize=(16, 10))
-        fig.patch.set_facecolor('#0a0a0a')
-        ax.set_facecolor('#0f0f0f')
+        fig.patch.set_facecolor('#f3f2f1')  # Fluent neutral-background-2
+        ax.set_facecolor('#ffffff')         # Fluent neutral-background-1
         
-        # Define tech-style colors
-        merged_color = '#00D9FF'      # Cyan
-        overlap_color = '#FF006E'     # Hot pink
-        unmerged_color = '#8338EC'    # Purple
-        final_color = '#FFB700'       # Gold
-        text_color = '#E0E0E0'        # Light gray
-        grid_color = '#2A2A2A'        # Dark gray
+        # Define Fluent UI color palette
+        brand_primary = '#0078d4'       # Microsoft brand blue
+        brand_secondary = '#605e5c'     # Neutral foreground secondary
+        merged_color = '#0078d4'        # Brand primary
+        overlap_color = '#d13438'       # Danger foreground
+        unmerged_color = '#8661c5'      # Purple variant
+        final_color = '#ffb900'         # Warning/amber
+        text_color = '#242424'          # Neutral foreground 1
+        grid_color = '#e1dfdd'          # Neutral stroke 2
+        border_color = '#d1d1d1'        # Neutral stroke 1
         
         # Height settings
-        bar_height = 0.6
-        overlap_height = 0.4
+        bar_height = 0.5
+        overlap_height = 0.35
         y_positions = {
             'merged': 4, 
-            'overlapping': 3.3,
-            'unmerged': 2.3, 
-            'final': 1.3
+            'overlapping': 3.2,
+            'unmerged': 2.2, 
+            'final': 1.2
         }
         
         # Plot merged segments
@@ -808,32 +811,26 @@ def create_segments_visualization(merged_segments_path: str, output_path: str) -
                 start = seg['startTimeMs'] / 1000
                 duration = (seg['endTimeMs'] - seg['startTimeMs']) / 1000
                 
-                # Draw merged segment with gradient effect
+                # Draw merged segment with clean styling
                 rect = patches.Rectangle(
                     (start, y_positions['merged'] - bar_height/2),
                     duration, bar_height,
-                    linewidth=0, facecolor=merged_color,
-                    alpha=0.8
+                    linewidth=1, edgecolor=border_color, facecolor=merged_color,
+                    alpha=0.9
                 )
                 ax.add_patch(rect)
                 
-                # Add glow effect
-                glow_rect = patches.Rectangle(
-                    (start, y_positions['merged'] - bar_height/2),
-                    duration, bar_height,
-                    linewidth=2, edgecolor=merged_color, facecolor='none',
-                    alpha=0.3
-                )
-                ax.add_patch(glow_rect)
-                
-                # Add label
+                # Add label with Fluent UI styling
                 content = seg.get('content', '')
-                if len(content) > 40:
-                    content = content[:37] + '...'
-                ax.text(start + duration/2, y_positions['merged'], content,
-                       ha='center', va='center', fontsize=9, color=text_color,
-                       weight='bold', bbox=dict(boxstyle='round,pad=0.3', 
-                                              facecolor='#1a1a1a', alpha=0.8))
+                if len(content) > 35:
+                    content = content[:32] + '...'
+                if content and duration > 0.5:  # Only show text if segment is wide enough
+                    ax.text(start + duration/2, y_positions['merged'], content,
+                           ha='center', va='center', fontsize=9, color='white',
+                           weight='500', family='Segoe UI',
+                           bbox=dict(boxstyle='round,pad=0.3', 
+                                   facecolor=merged_color, alpha=0.95, 
+                                   edgecolor='none'))
                 
                 # Plot overlapping segments
                 for i, overlap in enumerate(seg.get('overlapping_segments', [])):
@@ -841,41 +838,30 @@ def create_segments_visualization(merged_segments_path: str, output_path: str) -
                         overlap_start = overlap['startTimeMs'] / 1000
                         overlap_duration = (overlap['endTimeMs'] - overlap['startTimeMs']) / 1000
                         
-                        # Draw overlapping segment with better edge styling
+                        # Draw overlapping segment
                         overlap_rect = patches.Rectangle(
                             (overlap_start, y_positions['overlapping'] - overlap_height/2),
                             overlap_duration, overlap_height,
-                            linewidth=2, edgecolor='#FFFFFF', facecolor=overlap_color,
-                            alpha=0.7
+                            linewidth=1, edgecolor=border_color, facecolor=overlap_color,
+                            alpha=0.8
                         )
                         ax.add_patch(overlap_rect)
                         
-                        # Add inner glow effect
-                        inner_glow = patches.Rectangle(
-                            (overlap_start + 0.01, y_positions['overlapping'] - overlap_height/2 + 0.02),
-                            max(0.01, overlap_duration - 0.02), max(0.01, overlap_height - 0.04),
-                            linewidth=1, edgecolor=overlap_color, facecolor='none',
-                            alpha=0.5
-                        )
-                        ax.add_patch(inner_glow)
-                        
                         # Add segment label if duration is sufficient
-                        if overlap_duration > 0.5:  # Only add text if segment is wide enough
-                            overlap_text = overlap.get('sellingPoint', f'O{i+1}')
-                            if len(overlap_text) > 15:
-                                overlap_text = overlap_text[:12] + '...'
+                        if overlap_duration > 0.4:
+                            overlap_text = overlap.get('sellingPoint', f'Overlap {i+1}')
+                            if len(overlap_text) > 12:
+                                overlap_text = overlap_text[:9] + '...'
                             ax.text(overlap_start + overlap_duration/2, y_positions['overlapping'], 
-                                   overlap_text, ha='center', va='center', fontsize=7, 
-                                   color='#FFFFFF', weight='bold',
-                                   bbox=dict(boxstyle='round,pad=0.2', facecolor='#000000', 
-                                           alpha=0.6, edgecolor='none'))
+                                   overlap_text, ha='center', va='center', fontsize=8, 
+                                   color='white', weight='500', family='Segoe UI')
                         
-                        # Add connection line with better styling
+                        # Add connection line
                         connection_x = [start + duration/2, overlap_start + overlap_duration/2]
                         connection_y = [y_positions['merged'] - bar_height/2, 
                                       y_positions['overlapping'] + overlap_height/2]
-                        ax.plot(connection_x, connection_y, color='#FFFFFF', 
-                               alpha=0.4, linestyle='--', linewidth=1.5)
+                        ax.plot(connection_x, connection_y, color=brand_secondary, 
+                               alpha=0.5, linestyle='--', linewidth=1)
         
         # Plot unmerged segments
         for seg in unmerged_segments:
@@ -886,29 +872,19 @@ def create_segments_visualization(merged_segments_path: str, output_path: str) -
                 rect = patches.Rectangle(
                     (start, y_positions['unmerged'] - bar_height/2),
                     duration, bar_height,
-                    linewidth=0, facecolor=unmerged_color,
+                    linewidth=1, edgecolor=border_color, facecolor=unmerged_color,
                     alpha=0.8
                 )
                 ax.add_patch(rect)
                 
-                # Add glow effect
-                glow_rect = patches.Rectangle(
-                    (start, y_positions['unmerged'] - bar_height/2),
-                    duration, bar_height,
-                    linewidth=2, edgecolor=unmerged_color, facecolor='none',
-                    alpha=0.3
-                )
-                ax.add_patch(glow_rect)
-                
                 # Add label
                 selling_point = seg.get('sellingPoint', '')
-                if selling_point and len(selling_point) > 30:
-                    selling_point = selling_point[:27] + '...'
-                if selling_point:
+                if selling_point and len(selling_point) > 25:
+                    selling_point = selling_point[:22] + '...'
+                if selling_point and duration > 0.5:
                     ax.text(start + duration/2, y_positions['unmerged'], selling_point,
-                           ha='center', va='center', fontsize=8, color=text_color,
-                           bbox=dict(boxstyle='round,pad=0.3', 
-                                   facecolor='#1a1a1a', alpha=0.8))
+                           ha='center', va='center', fontsize=8, color='white',
+                           weight='500', family='Segoe UI')
         
         # Plot final segments
         for seg in final_segments:
@@ -919,87 +895,83 @@ def create_segments_visualization(merged_segments_path: str, output_path: str) -
                 rect = patches.Rectangle(
                     (start, y_positions['final'] - bar_height/2),
                     duration, bar_height,
-                    linewidth=0, facecolor=final_color,
-                    alpha=0.8
+                    linewidth=1, edgecolor=border_color, facecolor=final_color,
+                    alpha=0.9
                 )
                 ax.add_patch(rect)
                 
-                # Add glow effect
-                glow_rect = patches.Rectangle(
-                    (start, y_positions['final'] - bar_height/2),
-                    duration, bar_height,
-                    linewidth=2, edgecolor=final_color, facecolor='none',
-                    alpha=0.3
-                )
-                ax.add_patch(glow_rect)
-                
                 # Add label
                 selling_point = seg.get('sellingPoint', '')
-                if selling_point and len(selling_point) > 30:
-                    selling_point = selling_point[:27] + '...'
-                if selling_point:
+                if selling_point and len(selling_point) > 25:
+                    selling_point = selling_point[:22] + '...'
+                if selling_point and duration > 0.5:
                     ax.text(start + duration/2, y_positions['final'], selling_point,
                            ha='center', va='center', fontsize=8, color=text_color,
-                           bbox=dict(boxstyle='round,pad=0.3', 
-                                   facecolor='#1a1a1a', alpha=0.8))
+                           weight='500', family='Segoe UI')
         
-        # Configure plot with tech style
-        ax.set_xlim(0, max_time_seconds * 1.05)
-        ax.set_ylim(0.7, 4.7)
-        ax.set_xlabel('Time (seconds)', fontsize=12, color=text_color, weight='bold')
-        ax.set_ylabel('Segment Type', fontsize=12, color=text_color, weight='bold')
-        ax.set_title('Video Segments Analysis', fontsize=18, fontweight='bold', 
-                    color=text_color, pad=20)
+        # Configure plot with Fluent UI styling
+        ax.set_xlim(0, max_time_seconds * 1.02)
+        ax.set_ylim(0.8, 4.5)
+        ax.set_xlabel('Time (seconds)', fontsize=14, color=text_color, 
+                     weight='600', family='Segoe UI')
+        ax.set_ylabel('Segment Type', fontsize=14, color=text_color, 
+                     weight='600', family='Segoe UI')
+        ax.set_title('Video Segments Analysis', fontsize=20, fontweight='600', 
+                    color=text_color, pad=25, family='Segoe UI')
         
-        # Set y-axis labels
-        ax.set_yticks([1.3, 2.3, 3.3, 4])
+        # Set y-axis labels with Fluent UI typography
+        ax.set_yticks([1.2, 2.2, 3.2, 4])
         ax.set_yticklabels(['Final Segments', 'Unmerged Segments', 
                            'Overlapping Segments', 'Merged Segments'], 
-                          color=text_color)
+                          color=text_color, fontsize=12, family='Segoe UI')
         
-        # Style the axes
-        ax.spines['bottom'].set_color(grid_color)
-        ax.spines['left'].set_color(grid_color)
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        ax.tick_params(colors=text_color, which='both')
+        # Style the axes with Fluent UI colors
+        ax.spines['bottom'].set_color(border_color)
+        ax.spines['left'].set_color(border_color)
+        ax.spines['top'].set_color(border_color)
+        ax.spines['right'].set_color(border_color)
+        ax.spines['top'].set_linewidth(0.5)
+        ax.spines['right'].set_linewidth(0.5)
+        ax.tick_params(colors=text_color, which='both', labelsize=11)
         
-        # Add tech-style grid
-        ax.grid(True, axis='x', alpha=0.2, color=grid_color, linestyle='-')
-        ax.grid(True, axis='y', alpha=0.1, color=grid_color, linestyle='-')
+        # Add subtle grid
+        ax.grid(True, axis='x', alpha=0.3, color=grid_color, linestyle='-', linewidth=0.5)
+        ax.grid(True, axis='y', alpha=0.2, color=grid_color, linestyle='-', linewidth=0.5)
         
-        # Add legend with custom styling
+        # Add legend with Fluent UI styling
         legend_elements = [
-            patches.Patch(facecolor=merged_color, alpha=0.8, label='Merged Segments'),
-            patches.Patch(facecolor=overlap_color, alpha=0.6, label='Overlapping Segments'),
+            patches.Patch(facecolor=merged_color, alpha=0.9, label='Merged Segments'),
+            patches.Patch(facecolor=overlap_color, alpha=0.8, label='Overlapping Segments'),
             patches.Patch(facecolor=unmerged_color, alpha=0.8, label='Unmerged Segments'),
-            patches.Patch(facecolor=final_color, alpha=0.8, label='Final Segments')
+            patches.Patch(facecolor=final_color, alpha=0.9, label='Final Segments')
         ]
         legend = ax.legend(handles=legend_elements, loc='upper right', 
-                         facecolor='#1a1a1a', edgecolor=grid_color,
-                         labelcolor=text_color, fontsize=10)
-        legend.get_frame().set_alpha(0.9)
+                         facecolor='white', edgecolor=border_color,
+                         labelcolor=text_color, fontsize=11, 
+                         framealpha=0.95, shadow=True)
+        legend.get_frame().set_linewidth(1)
         
-        # Add time markers
-        time_interval = max(10, int(max_time_seconds / 10))
+        # Add time markers with subtle styling
+        time_interval = max(1, int(max_time_seconds / 12))
         for t in range(0, int(max_time_seconds) + 1, time_interval):
-            ax.axvline(x=t, color=grid_color, alpha=0.3, linestyle=':', linewidth=0.5)
-            ax.text(t, 0.5, f'{t}s', ha='center', va='center', 
-                   fontsize=8, color=text_color, alpha=0.5)
+            if t > 0:  # Skip zero
+                ax.axvline(x=t, color=grid_color, alpha=0.4, linestyle=':', linewidth=0.8)
         
-        # Add statistics box
+        # Add statistics box with Fluent UI card styling
         stats_text = (f"Total Segments: {len(merged_segments) + len(unmerged_segments)}\n"
                      f"Merged: {len(merged_segments)} | Unmerged: {len(unmerged_segments)} | "
                      f"Final: {len(final_segments)}")
         ax.text(0.02, 0.98, stats_text, transform=ax.transAxes,
-               fontsize=10, color=text_color, verticalalignment='top',
-               bbox=dict(boxstyle='round,pad=0.5', facecolor='#1a1a1a', 
-                        alpha=0.8, edgecolor=grid_color))
+               fontsize=11, color=text_color, verticalalignment='top',
+               weight='500', family='Segoe UI',
+               bbox=dict(boxstyle='round,pad=0.5', facecolor='white', 
+                        alpha=0.95, edgecolor=border_color, linewidth=1))
         
-        # Tight layout and save
+        # Tight layout and save with high quality
         plt.tight_layout()
         plt.savefig(output_path, dpi=300, bbox_inches='tight', 
-                   facecolor='#0a0a0a', edgecolor='none')
+                   facecolor='#f3f2f1', edgecolor='none', 
+                   metadata={'Creator': 'Video Analysis Dashboard'})
         plt.close(fig)
         
         logging.info("Visualization saved to: %s", output_path, extra={"output_file": output_path})
