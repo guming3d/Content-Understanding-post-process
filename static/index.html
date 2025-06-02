@@ -1548,14 +1548,6 @@
                     <i class="fas fa-check-square" aria-hidden="true"></i>
                     <span><span id="selectedCount">0</span> videos selected</span>
                 </div>
-                <div class="toggle-switch">
-                    <input type="checkbox" id="enableContentUnderstanding" checked
-                           aria-describedby="content-understanding-desc">
-                    <label for="enableContentUnderstanding">Content Understanding</label>
-                    <div id="content-understanding-desc" class="sr-only">
-                        Enable advanced content analysis using Azure AI
-                    </div>
-                </div>
             </div>
             <div class="batch-buttons" role="toolbar" aria-label="Batch video actions">
                 <button class="btn btn-secondary" onclick="selectAllVideos()" 
@@ -2188,7 +2180,6 @@
         async function processSelectedVideos() {
             if (selectedVideos.size === 0) return;
             
-            const enableContentUnderstanding = document.getElementById('enableContentUnderstanding').checked;
             const btn = document.getElementById('processSelectedBtn');
             
             btn.disabled = true;
@@ -2201,8 +2192,7 @@
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        video_names: Array.from(selectedVideos),
-                        enable_content_understanding: enableContentUnderstanding
+                        video_names: Array.from(selectedVideos)
                     })
                 });
                 
@@ -2224,8 +2214,6 @@
         
         // Process individual video
         async function processVideo(videoName) {
-            const enableContentUnderstanding = document.getElementById('enableContentUnderstanding').checked;
-            
             try {
                 const response = await fetch('/api/process', {
                     method: 'POST',
@@ -2233,8 +2221,7 @@
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        video_name: videoName,
-                        enable_content_understanding: enableContentUnderstanding
+                        video_name: videoName
                     })
                 });
                 

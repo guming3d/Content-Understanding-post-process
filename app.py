@@ -125,7 +125,6 @@ executor = ThreadPoolExecutor(max_workers=3)
 # Pydantic models
 class ProcessVideoRequest(BaseModel):
     video_name: str
-    enable_content_understanding: bool = True
 
 class BatchProcessRequest(BaseModel):
     video_names: list[str]
@@ -625,7 +624,7 @@ async def update_status(video_name: str, status: str, progress: int, message: st
         "message": message
     })
 
-async def process_video_async(video_path: str, video_name: str, enable_content_understanding: bool = True):
+async def process_video_async(video_path: str, video_name: str):
     """
     Async wrapper for video processing with status updates
     """
@@ -642,19 +641,18 @@ async def process_video_async(video_path: str, video_name: str, enable_content_u
         audio_path = base + ".wav"
         thumbnail_path = base + "_thumbnail.jpg"
         
-        # Step 1: Content Understanding Analysis (if enabled)
-        if enable_content_understanding:
-            await update_status(video_name, "processing", 10, "Analyzing video content...")
-            analyzer_template_path = "./analyzer_templates/video_content_understanding.json"
-            loop = asyncio.get_event_loop()
-            await loop.run_in_executor(
-                executor, 
-                analyze_video, 
-                video_path, 
-                CONTENT_UNDERSTANDING_ENDPOINT, 
-                CONTENT_UNDERSTANDING_API_VERSION, 
-                analyzer_template_path
-            )
+        # Step 1: Content Understanding Analysis (always enabled)
+        await update_status(video_name, "processing", 10, "Analyzing video content...")
+        analyzer_template_path = "./analyzer_templates/video_content_understanding.json"
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(
+            executor, 
+            analyze_video, 
+            video_path, 
+            CONTENT_UNDERSTANDING_ENDPOINT, 
+            CONTENT_UNDERSTANDING_API_VERSION, 
+            analyzer_template_path
+        )
         
         # Step 2: Extract audio
         await update_status(video_name, "processing", 30, "Extracting audio from video...")
@@ -701,8 +699,8 @@ async def process_video_async(video_path: str, video_name: str, enable_content_u
         with open(selling_points_path, "w", encoding="utf-8") as f:
             json.dump({"selling_points": timestamped_selling_points}, f, indent=2)
         
-        # Step 7: Merge segments if content analysis was done
-        if enable_content_understanding and os.path.exists(content_json_path):
+        # Step 7: Merge segments (content analysis is always done)
+        if os.path.exists(content_json_path):
             await update_status(video_name, "processing", 90, "Merging video segments...")
             
             with open(content_json_path, 'r') as f:
@@ -744,110 +742,6 @@ async def process_video_async(video_path: str, video_name: str, enable_content_u
     except Exception as e:
         logging.error(f"Error processing video {video_name}: {str(e)}")
         await update_status(video_name, "error", 0, f"Error: {str(e)}")
-
-async def process_all_videos_batch(enable_content_understanding: bool = True):
-    """
-    Process all videos in the inputs directory without starting the web server.
-    
-    Args:
-        enable_content_understanding: Whether to enable content understanding analysis
-    """
-    input_dir = Path("inputs")
-    if not input_dir.exists():
-        logging.error("No inputs directory found")
-        return
-    
-    video_files = list(input_dir.glob("*.mp4"))
-    
-    if not video_files:
-        logging.info("No video files found in inputs directory")
-        return
-    
-    logging.info("Found %d video files to process", len(video_files), extra={"count": len(video_files)})
-    
-    # Process videos sequentially to avoid overwhelming the system
-    for idx, video_path in enumerate(video_files, 1):
-        video_name = video_path.name
-        logging.info("Processing video %d/%d: %s", idx, len(video_files), video_name, 
-                    extra={"current": idx, "total": len(video_files), "video": video_name})
-        
-        try:
-            # Check if results already exist
-            base = video_path.with_suffix("")
-            results_exist = all(
-                (base.parent / f"{base.name}{sfx}").exists()
-                for sfx in ("_selling_points.json", "_merged_segments.json", "_segments_visualization.png")
-            )
-            
-            if results_exist:
-                logging.info("Results already exist for %s, skipping...", video_name, extra={"video": video_name})
-                continue
-            
-            # Process the video
-            await process_video_async(str(video_path), video_name, enable_content_understanding)
-            
-            # Get final status
-            final_status = processing_status.get(video_name, {})
-            if final_status.get("status") == "completed":
-                logging.info("Successfully processed %s", video_name, extra={"video": video_name})
-            else:
-                logging.error("Failed to process %s: %s", video_name, final_status.get("message", "Unknown error"),
-                            extra={"video": video_name, "error": final_status.get("message", "Unknown error")})
-                
-        except Exception as e:
-            logging.error("Error processing %s: %s", video_name, str(e), 
-                         extra={"video": video_name, "error": str(e)})
-    
-    logging.info("Batch processing completed")
-
-def parse_arguments():
-    """Parse command-line arguments."""
-    parser = argparse.ArgumentParser(
-        description="Video Analysis Pipeline - Process videos with Azure AI Services",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  # Start the web UI (default)
-  python app.py
-  
-  # Process all videos without UI
-  python app.py --batch
-  
-  # Process all videos without content understanding
-  python app.py --batch --no-content-understanding
-  
-  # Specify custom port for web UI
-  python app.py --port 8080
-        """
-    )
-    
-    parser.add_argument(
-        "--batch", 
-        action="store_true",
-        help="Process all videos in inputs directory without starting the web UI"
-    )
-    
-    parser.add_argument(
-        "--no-content-understanding",
-        action="store_true",
-        help="Disable content understanding analysis (only applies in batch mode)"
-    )
-    
-    parser.add_argument(
-        "--port",
-        type=int,
-        default=8000,
-        help="Port to run the web server on (default: 8000)"
-    )
-    
-    parser.add_argument(
-        "--host",
-        type=str,
-        default="0.0.0.0",
-        help="Host to bind the web server to (default: 0.0.0.0)"
-    )
-    
-    return parser.parse_args()
 
 def create_segments_visualization(merged_segments_path: str, output_path: str) -> None:
     """
@@ -1161,6 +1055,40 @@ def get_video_duration(video_path: str) -> Optional[float]:
         logging.error(f"Error getting video duration: {str(e)}")
         return None
 
+def parse_arguments():
+    """Parse command-line arguments"""
+    parser = argparse.ArgumentParser(description='Video Analysis Pipeline')
+    parser.add_argument('--batch', action='store_true', help='Run in batch mode without web UI')
+    parser.add_argument('--host', type=str, default='0.0.0.0', help='Host to bind the web server to')
+    parser.add_argument('--port', type=int, default=8000, help='Port to bind the web server to')
+    return parser.parse_args()
+
+async def process_all_videos_batch():
+    """Process all videos in the inputs directory in batch mode"""
+    input_dir = Path("inputs")
+    videos = list(input_dir.glob("*.mp4"))
+    
+    if not videos:
+        logging.info("No videos found in inputs directory")
+        return
+    
+    logging.info(f"Found {len(videos)} videos to process")
+    
+    # Process videos concurrently with a limit
+    semaphore = asyncio.Semaphore(3)  # Limit concurrent processing
+    
+    async def process_with_semaphore(video_path):
+        async with semaphore:
+            video_name = video_path.name
+            logging.info(f"Processing {video_name}")
+            await process_video_async(str(video_path), video_name)
+    
+    # Process all videos
+    tasks = [process_with_semaphore(video) for video in videos]
+    await asyncio.gather(*tasks)
+    
+    logging.info("Batch processing completed")
+
 # API Endpoints
 @app.get("/api/videos")
 async def list_videos() -> list[dict]:          # return plain dicts -> can add extra fields
@@ -1285,8 +1213,7 @@ async def process_video_endpoint(request: ProcessVideoRequest, background_tasks:
     background_tasks.add_task(
         process_video_async, 
         video_path, 
-        request.video_name,
-        request.enable_content_understanding
+        request.video_name
     )
     
     return {"message": "Processing started", "video_name": request.video_name}
@@ -1308,8 +1235,7 @@ async def process_batch_endpoint(request: BatchProcessRequest, background_tasks:
         background_tasks.add_task(
             process_video_async, 
             video_path, 
-            video_name,
-            request.enable_content_understanding
+            video_name
         )
         processed_videos.append(video_name)
     
@@ -1525,10 +1451,9 @@ if __name__ == "__main__":
     if args.batch:
         # Run in batch mode without web UI
         logging.info("Starting batch processing mode...")
-        enable_content_understanding = not args.no_content_understanding
         
         # Run the async batch processing
-        asyncio.run(process_all_videos_batch(enable_content_understanding))
+        asyncio.run(process_all_videos_batch())
         
         # Exit after batch processing
         sys.exit(0)
