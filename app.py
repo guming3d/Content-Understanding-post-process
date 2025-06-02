@@ -25,6 +25,8 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+import argparse
+import sys
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, BackgroundTasks, UploadFile, File
 from fastapi.staticfiles import StaticFiles
@@ -743,6 +745,110 @@ async def process_video_async(video_path: str, video_name: str, enable_content_u
         logging.error(f"Error processing video {video_name}: {str(e)}")
         await update_status(video_name, "error", 0, f"Error: {str(e)}")
 
+async def process_all_videos_batch(enable_content_understanding: bool = True):
+    """
+    Process all videos in the inputs directory without starting the web server.
+    
+    Args:
+        enable_content_understanding: Whether to enable content understanding analysis
+    """
+    input_dir = Path("inputs")
+    if not input_dir.exists():
+        logging.error("No inputs directory found")
+        return
+    
+    video_files = list(input_dir.glob("*.mp4"))
+    
+    if not video_files:
+        logging.info("No video files found in inputs directory")
+        return
+    
+    logging.info("Found %d video files to process", len(video_files), extra={"count": len(video_files)})
+    
+    # Process videos sequentially to avoid overwhelming the system
+    for idx, video_path in enumerate(video_files, 1):
+        video_name = video_path.name
+        logging.info("Processing video %d/%d: %s", idx, len(video_files), video_name, 
+                    extra={"current": idx, "total": len(video_files), "video": video_name})
+        
+        try:
+            # Check if results already exist
+            base = video_path.with_suffix("")
+            results_exist = all(
+                (base.parent / f"{base.name}{sfx}").exists()
+                for sfx in ("_selling_points.json", "_merged_segments.json", "_segments_visualization.png")
+            )
+            
+            if results_exist:
+                logging.info("Results already exist for %s, skipping...", video_name, extra={"video": video_name})
+                continue
+            
+            # Process the video
+            await process_video_async(str(video_path), video_name, enable_content_understanding)
+            
+            # Get final status
+            final_status = processing_status.get(video_name, {})
+            if final_status.get("status") == "completed":
+                logging.info("Successfully processed %s", video_name, extra={"video": video_name})
+            else:
+                logging.error("Failed to process %s: %s", video_name, final_status.get("message", "Unknown error"),
+                            extra={"video": video_name, "error": final_status.get("message", "Unknown error")})
+                
+        except Exception as e:
+            logging.error("Error processing %s: %s", video_name, str(e), 
+                         extra={"video": video_name, "error": str(e)})
+    
+    logging.info("Batch processing completed")
+
+def parse_arguments():
+    """Parse command-line arguments."""
+    parser = argparse.ArgumentParser(
+        description="Video Analysis Pipeline - Process videos with Azure AI Services",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Start the web UI (default)
+  python app.py
+  
+  # Process all videos without UI
+  python app.py --batch
+  
+  # Process all videos without content understanding
+  python app.py --batch --no-content-understanding
+  
+  # Specify custom port for web UI
+  python app.py --port 8080
+        """
+    )
+    
+    parser.add_argument(
+        "--batch", 
+        action="store_true",
+        help="Process all videos in inputs directory without starting the web UI"
+    )
+    
+    parser.add_argument(
+        "--no-content-understanding",
+        action="store_true",
+        help="Disable content understanding analysis (only applies in batch mode)"
+    )
+    
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8000,
+        help="Port to run the web server on (default: 8000)"
+    )
+    
+    parser.add_argument(
+        "--host",
+        type=str,
+        default="0.0.0.0",
+        help="Host to bind the web server to (default: 0.0.0.0)"
+    )
+    
+    return parser.parse_args()
+
 def create_segments_visualization(merged_segments_path: str, output_path: str) -> None:
     """
     Create a visualization of video segments showing merged and unmerged segments.
@@ -1414,5 +1520,20 @@ async def serve_video(filename: str):
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    args = parse_arguments()
+    
+    if args.batch:
+        # Run in batch mode without web UI
+        logging.info("Starting batch processing mode...")
+        enable_content_understanding = not args.no_content_understanding
+        
+        # Run the async batch processing
+        asyncio.run(process_all_videos_batch(enable_content_understanding))
+        
+        # Exit after batch processing
+        sys.exit(0)
+    else:
+        # Start the web UI server
+        import uvicorn
+        logging.info("Starting web UI server on %s:%d", args.host, args.port)
+        uvicorn.run(app, host=args.host, port=args.port)
