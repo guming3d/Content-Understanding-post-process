@@ -193,24 +193,25 @@ Then open your browser and navigate to `http://localhost:3000`
 ```
 ├── .env                       # Azure service credentials
 ├── requirements.txt           # Python dependencies
-├── app.py                     # Main video processing script
-├── transcribe_videos.py       # Module for transcription functions (imported by app.py)
-├── README.md                  # This documentation
-├── frontend/                  # Frontend visualization tool
-│   ├── index.html             # Main HTML page
-│   ├── styles.css             # CSS styles
-│   ├── app.js                 # Frontend JavaScript
-│   ├── server.js              # Express server for serving the frontend
-│   └── package.json           # Node.js dependencies
-├── inputs/                    # Directory for input videos and generated files
-│   ├── *.mp4                  # Input video files
-│   ├── *.mp4.json             # (Optional) Input JSON for initial video segments
-│   ├── *_word.txt             # Generated word-level transcripts
-│   ├── *_sentence.txt         # Generated sentence-level transcripts
-│   ├── *_selling_points.json  # Generated selling points with timestamps
-│   ├── *_merged_segments.json # Generated merged segments
-│   └── *_segments_visualization.png # Generated segment visualization
-└── outputs/                   # (Potentially unused or for other scripts, app.py outputs to inputs/)
+├── app.py                     # Main FastAPI application
+├── transcribe_videos.py       # Transcription functions module
+├── content_understanding_client.py  # Azure Content Understanding client
+├── analyzer_templates/        # Content Understanding templates
+│   └── video_content_understanding.json
+├── static/                    # Web dashboard files
+│   └── index.html            # Main web interface
+├── inputs/                    # Video files and processing results
+│   ├── *.mp4                 # Input video files
+│   ├── *_word.txt            # Word-level transcriptions
+│   ├── *_sentence.txt        # Sentence-level transcriptions
+│   ├── *_selling_points.json # Selling points with timestamps
+│   ├── *_merged_segments.json # Merged segments
+│   ├── *_segments_visualization.png # Visual timelines
+│   └── *.mp4.json           # Content understanding results
+├── thumbnails/               # Generated video thumbnails
+│   └── *.jpg
+├── README.md                 # This documentation
+└── README_zh.md              # Chinese documentation
 ```
 
 ## Contributing
