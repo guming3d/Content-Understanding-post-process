@@ -47,11 +47,11 @@ class TestFrontend(unittest.TestCase):
             <!DOCTYPE html>
             <html>
             <head>
-                <title>Video Analysis Dashboard</title>
+                <title>Video Segmentation Dashboard</title>
             </head>
             <body>
                 <div id="app">
-                    <h1>Video Analysis Dashboard</h1>
+                    <h1>Video Segmentation Dashboard</h1>
                     <div id="videoGrid"></div>
                     <div id="uploadSection">
                         <input type="file" id="fileInput" accept="video/*">

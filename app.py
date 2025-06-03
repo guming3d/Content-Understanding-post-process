@@ -976,7 +976,7 @@ def create_segments_visualization(merged_segments_path: str, output_path: str) -
         plt.tight_layout()
         plt.savefig(output_path, dpi=300, bbox_inches='tight', 
                    facecolor='#f3f2f1', edgecolor='none', 
-                   metadata={'Creator': 'Video Analysis Dashboard'})
+                   metadata={'Creator': 'Video Segmentation Dashboard'})
         plt.close(fig)
         
         logging.info("Visualization saved to: %s", output_path, extra={"output_file": output_path})
