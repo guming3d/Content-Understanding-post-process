@@ -644,7 +644,6 @@ async def process_video_async(video_path: str, video_name: str):
         visualization_path = base + "_segments_visualization.png"
         content_json_path = video_path + ".json"
         audio_path = base + ".wav"
-        thumbnail_path = base + "_thumbnail.jpg"
         
         # Step 1: Content Understanding Analysis (always enabled)
         await update_status(video_name, "processing", 10, "Analyzing video content...")
@@ -732,11 +731,6 @@ async def process_video_async(video_path: str, video_name: str):
                 merged_segments_path,
                 visualization_path
             )
-        
-        # Step 9: Generate thumbnail
-        await update_status(video_name, "processing", 100, "Generating video thumbnail...")
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(executor, generate_thumbnail, video_path, thumbnail_path)
         
         # Cleanup
         if os.path.exists(audio_path):
@@ -1370,6 +1364,7 @@ async def delete_video(video_name: str):
     try:
         # Delete main video file
         video_path.unlink()
+        logging.info("Deleted video file: %s", video_name, extra={"video": video_name})
         
         # Delete associated files
         base_path = video_path.with_suffix('')
@@ -1382,18 +1377,29 @@ async def delete_video(video_name: str):
             f"{video_path}.json"  # content understanding results
         ]
         
+        deleted_files = []
         for file_path in associated_files:
             if Path(file_path).exists():
                 Path(file_path).unlink()
+                deleted_files.append(Path(file_path).name)
         
-        # Delete thumbnail
-        thumbnail_path = Path("thumbnails") / f"{base_path.name}.jpg"
-        if thumbnail_path.exists():
-            thumbnail_path.unlink()
+        if deleted_files:
+            logging.info("Deleted associated files: %s", ", ".join(deleted_files), extra={"files": deleted_files})
+        
+        # Delete thumbnail from thumbnails directory
+        thumbnail_dir = Path("thumbnails")
+        if thumbnail_dir.exists():
+            thumbnail_path = thumbnail_dir / f"{base_path.name}.jpg"
+            if thumbnail_path.exists():
+                thumbnail_path.unlink()
+                logging.info("Deleted thumbnail: %s", thumbnail_path.name, extra={"thumbnail": thumbnail_path.name})
+            else:
+                logging.warning("Thumbnail not found: %s", thumbnail_path.name, extra={"thumbnail": thumbnail_path.name})
         
         # Remove from processing status
         if video_name in processing_status:
             del processing_status[video_name]
+            logging.info("Removed from processing status: %s", video_name, extra={"video": video_name})
         
         # Broadcast update to all connected clients
         await manager.broadcast({
@@ -1404,7 +1410,7 @@ async def delete_video(video_name: str):
         return {"message": f"Video {video_name} and associated files deleted successfully"}
         
     except Exception as e:
-        logging.error(f"Failed to delete video {video_name}: {str(e)}")
+        logging.error("Failed to delete video %s: %s", video_name, str(e), extra={"video": video_name, "error": str(e)})
         raise HTTPException(status_code=500, detail=f"Failed to delete video: {str(e)}")
 
 @app.websocket("/ws")
