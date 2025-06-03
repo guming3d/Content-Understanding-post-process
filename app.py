@@ -147,6 +147,11 @@ def extract_selling_points(transcription_text):
     Returns:
         list: A list of extracted selling points
     """
+    # Handle empty or None transcription
+    if not transcription_text or not transcription_text.strip():
+        logging.warning("Empty or None transcription provided to extract_selling_points")
+        return []
+    
     try:
         # Initialize Azure OpenAI client
         client = AzureOpenAI(

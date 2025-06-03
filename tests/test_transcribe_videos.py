@@ -56,20 +56,25 @@ class TestTranscribeVideos(unittest.TestCase):
         
         self.assertIn("FFmpeg error", str(context.exception))
     
+    @patch('azure.cognitiveservices.speech.ResultReason')
     @patch('azure.cognitiveservices.speech.SpeechRecognizer')
     @patch('azure.cognitiveservices.speech.AudioConfig')
     @patch('azure.cognitiveservices.speech.SpeechConfig')
     def test_transcribe_audio_with_word_timestamps(self, mock_speech_config, 
                                                    mock_audio_config, 
-                                                   mock_recognizer_class):
+                                                   mock_recognizer_class,
+                                                   mock_result_reason):
         """Test word-level transcription"""
         # Mock the recognizer
         mock_recognizer = MagicMock()
         mock_recognizer_class.return_value = mock_recognizer
         
+        # Mock the ResultReason enum
+        mock_result_reason.RecognizedSpeech = 1
+        
         # Mock recognition result
         mock_event = MagicMock()
-        mock_event.result.reason = MagicMock(RecognizedSpeech=1)
+        mock_event.result.reason = 1  # Use the same value as RecognizedSpeech
         mock_event.result.json = json.dumps({
             'NBest': [{
                 'Words': [
@@ -121,20 +126,25 @@ class TestTranscribeVideos(unittest.TestCase):
         self.assertEqual(results[0], (1.0, 1.5, 'Hello'))
         self.assertEqual(results[1], (2.0, 2.5, 'World'))
     
+    @patch('azure.cognitiveservices.speech.ResultReason')
     @patch('azure.cognitiveservices.speech.SpeechRecognizer')
     @patch('azure.cognitiveservices.speech.AudioConfig')
     @patch('azure.cognitiveservices.speech.SpeechConfig')
     def test_transcribe_audio_with_sentence_timestamps(self, mock_speech_config, 
                                                        mock_audio_config, 
-                                                       mock_recognizer_class):
+                                                       mock_recognizer_class,
+                                                       mock_result_reason):
         """Test sentence-level transcription"""
         # Mock the recognizer
         mock_recognizer = MagicMock()
         mock_recognizer_class.return_value = mock_recognizer
         
+        # Mock the ResultReason enum
+        mock_result_reason.RecognizedSpeech = 1
+        
         # Mock recognition result
         mock_event = MagicMock()
-        mock_event.result.reason = MagicMock(RecognizedSpeech=1)
+        mock_event.result.reason = 1  # Use the same value as RecognizedSpeech
         mock_event.result.json = json.dumps({
             'NBest': [{
                 'Lexical': 'hello world how are you',
