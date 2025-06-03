@@ -778,8 +778,35 @@ def create_segments_visualization(merged_segments_path: str, output_path: str) -
         # Reset matplotlib style and use clean professional style
         plt.style.use('default')
         
+        # Determine which segments types exist
+        has_unmerged = len(unmerged_segments) > 0
+        has_final = len(final_segments) > 0
+        
+        # Dynamically adjust figure height and y-positions based on content
+        if has_unmerged:
+            fig_height = 10
+            y_positions = {
+                'merged': 4, 
+                'overlapping': 3.2,
+                'unmerged': 2.2, 
+                'final': 1.2
+            }
+            y_labels = ['Final Segments', 'Unmerged Segments', 'Overlapping Segments', 'Merged Segments']
+            y_ticks = [1.2, 2.2, 3.2, 4]
+            y_lim = (0.8, 4.5)
+        else:
+            fig_height = 8
+            y_positions = {
+                'merged': 3.2, 
+                'overlapping': 2.4,
+                'final': 1.2
+            }
+            y_labels = ['Final Segments', 'Overlapping Segments', 'Merged Segments']
+            y_ticks = [1.2, 2.4, 3.2]
+            y_lim = (0.8, 3.7)
+        
         # Create figure and axis with Fluent UI colors
-        fig, ax = plt.subplots(figsize=(16, 10))
+        fig, ax = plt.subplots(figsize=(16, fig_height))
         fig.patch.set_facecolor('#f3f2f1')  # Fluent neutral-background-2
         ax.set_facecolor('#ffffff')         # Fluent neutral-background-1
         
@@ -797,12 +824,6 @@ def create_segments_visualization(merged_segments_path: str, output_path: str) -
         # Height settings
         bar_height = 0.5
         overlap_height = 0.35
-        y_positions = {
-            'merged': 4, 
-            'overlapping': 3.2,
-            'unmerged': 2.2, 
-            'final': 1.2
-        }
         
         # Plot merged segments
         for seg in merged_segments:
@@ -862,55 +883,57 @@ def create_segments_visualization(merged_segments_path: str, output_path: str) -
                         ax.plot(connection_x, connection_y, color=brand_secondary, 
                                alpha=0.5, linestyle='--', linewidth=1)
         
-        # Plot unmerged segments
-        for seg in unmerged_segments:
-            if seg.get('startTimeMs') is not None and seg.get('endTimeMs') is not None:
-                start = seg['startTimeMs'] / 1000
-                duration = (seg['endTimeMs'] - seg['startTimeMs']) / 1000
-                
-                rect = patches.Rectangle(
-                    (start, y_positions['unmerged'] - bar_height/2),
-                    duration, bar_height,
-                    linewidth=1, edgecolor=border_color, facecolor=unmerged_color,
-                    alpha=0.8
-                )
-                ax.add_patch(rect)
-                
-                # Add label
-                selling_point = seg.get('sellingPoint', '')
-                if selling_point and len(selling_point) > 25:
-                    selling_point = selling_point[:22] + '...'
-                if selling_point and duration > 0.5:
-                    ax.text(start + duration/2, y_positions['unmerged'], selling_point,
-                           ha='center', va='center', fontsize=8, color='white',
-                           weight='500', family='Segoe UI')
+        # Plot unmerged segments (only if they exist)
+        if has_unmerged:
+            for seg in unmerged_segments:
+                if seg.get('startTimeMs') is not None and seg.get('endTimeMs') is not None:
+                    start = seg['startTimeMs'] / 1000
+                    duration = (seg['endTimeMs'] - seg['startTimeMs']) / 1000
+                    
+                    rect = patches.Rectangle(
+                        (start, y_positions['unmerged'] - bar_height/2),
+                        duration, bar_height,
+                        linewidth=1, edgecolor=border_color, facecolor=unmerged_color,
+                        alpha=0.8
+                    )
+                    ax.add_patch(rect)
+                    
+                    # Add label
+                    selling_point = seg.get('sellingPoint', '')
+                    if selling_point and len(selling_point) > 25:
+                        selling_point = selling_point[:22] + '...'
+                    if selling_point and duration > 0.5:
+                        ax.text(start + duration/2, y_positions['unmerged'], selling_point,
+                               ha='center', va='center', fontsize=8, color='white',
+                               weight='500', family='Segoe UI')
         
         # Plot final segments
-        for seg in final_segments:
-            if seg.get('startTimeMs') is not None and seg.get('endTimeMs') is not None:
-                start = seg['startTimeMs'] / 1000
-                duration = (seg['endTimeMs'] - seg['startTimeMs']) / 1000
-                
-                rect = patches.Rectangle(
-                    (start, y_positions['final'] - bar_height/2),
-                    duration, bar_height,
-                    linewidth=1, edgecolor=border_color, facecolor=final_color,
-                    alpha=0.9
-                )
-                ax.add_patch(rect)
-                
-                # Add label
-                selling_point = seg.get('sellingPoint', '')
-                if selling_point and len(selling_point) > 25:
-                    selling_point = selling_point[:22] + '...'
-                if selling_point and duration > 0.5:
-                    ax.text(start + duration/2, y_positions['final'], selling_point,
-                           ha='center', va='center', fontsize=8, color=text_color,
-                           weight='500', family='Segoe UI')
+        if has_final:
+            for seg in final_segments:
+                if seg.get('startTimeMs') is not None and seg.get('endTimeMs') is not None:
+                    start = seg['startTimeMs'] / 1000
+                    duration = (seg['endTimeMs'] - seg['startTimeMs']) / 1000
+                    
+                    rect = patches.Rectangle(
+                        (start, y_positions['final'] - bar_height/2),
+                        duration, bar_height,
+                        linewidth=1, edgecolor=border_color, facecolor=final_color,
+                        alpha=0.9
+                    )
+                    ax.add_patch(rect)
+                    
+                    # Add label
+                    selling_point = seg.get('sellingPoint', '')
+                    if selling_point and len(selling_point) > 25:
+                        selling_point = selling_point[:22] + '...'
+                    if selling_point and duration > 0.5:
+                        ax.text(start + duration/2, y_positions['final'], selling_point,
+                               ha='center', va='center', fontsize=8, color=text_color,
+                               weight='500', family='Segoe UI')
         
         # Configure plot with Fluent UI styling
         ax.set_xlim(0, max_time_seconds * 1.02)
-        ax.set_ylim(0.8, 4.5)
+        ax.set_ylim(*y_lim)
         ax.set_xlabel('Time (seconds)', fontsize=14, color=text_color, 
                      weight='600', family='Segoe UI')
         ax.set_ylabel('Segment Type', fontsize=14, color=text_color, 
@@ -919,10 +942,8 @@ def create_segments_visualization(merged_segments_path: str, output_path: str) -
                     color=text_color, pad=25, family='Segoe UI')
         
         # Set y-axis labels with Fluent UI typography
-        ax.set_yticks([1.2, 2.2, 3.2, 4])
-        ax.set_yticklabels(['Final Segments', 'Unmerged Segments', 
-                           'Overlapping Segments', 'Merged Segments'], 
-                          color=text_color, fontsize=12, family='Segoe UI')
+        ax.set_yticks(y_ticks)
+        ax.set_yticklabels(y_labels, color=text_color, fontsize=12, family='Segoe UI')
         
         # Style the axes with Fluent UI colors
         ax.spines['bottom'].set_color(border_color)
@@ -937,14 +958,18 @@ def create_segments_visualization(merged_segments_path: str, output_path: str) -
         ax.grid(True, axis='x', alpha=0.3, color=grid_color, linestyle='-', linewidth=0.5)
         ax.grid(True, axis='y', alpha=0.2, color=grid_color, linestyle='-', linewidth=0.5)
         
-        # Add legend with Fluent UI styling
+        # Create legend elements based on what exists
         legend_elements = [
             patches.Patch(facecolor=merged_color, alpha=0.9, label='Merged Segments'),
-            patches.Patch(facecolor=overlap_color, alpha=0.8, label='Overlapping Segments'),
-            patches.Patch(facecolor=unmerged_color, alpha=0.8, label='Unmerged Segments'),
-            patches.Patch(facecolor=final_color, alpha=0.9, label='Final Segments')
+            patches.Patch(facecolor=overlap_color, alpha=0.8, label='Overlapping Segments')
         ]
-        legend = ax.legend(handles=legend_elements, loc='upper right', 
+        if has_unmerged:
+            legend_elements.append(patches.Patch(facecolor=unmerged_color, alpha=0.8, label='Unmerged Segments'))
+        if has_final:
+            legend_elements.append(patches.Patch(facecolor=final_color, alpha=0.9, label='Final Segments'))
+        
+        # Position legend to avoid overlap - use bottom right instead of top right
+        legend = ax.legend(handles=legend_elements, loc='lower right', 
                          facecolor='white', edgecolor=border_color,
                          labelcolor=text_color, fontsize=11, 
                          framealpha=0.95, shadow=True)
@@ -956,10 +981,12 @@ def create_segments_visualization(merged_segments_path: str, output_path: str) -
             if t > 0:  # Skip zero
                 ax.axvline(x=t, color=grid_color, alpha=0.4, linestyle=':', linewidth=0.8)
         
-        # Add statistics box with Fluent UI card styling
-        stats_text = (f"Total Segments: {len(merged_segments) + len(unmerged_segments)}\n"
-                     f"Merged: {len(merged_segments)} | Unmerged: {len(unmerged_segments)} | "
-                     f"Final: {len(final_segments)}")
+        # Add statistics box with Fluent UI card styling - position in top left
+        total_segments = len(merged_segments) + len(unmerged_segments)
+        stats_text = f"Total Segments: {total_segments}\nMerged: {len(merged_segments)} | Unmerged: {len(unmerged_segments)}"
+        if has_final:
+            stats_text += f" | Final: {len(final_segments)}"
+        
         ax.text(0.02, 0.98, stats_text, transform=ax.transAxes,
                fontsize=11, color=text_color, verticalalignment='top',
                weight='500', family='Segoe UI',
