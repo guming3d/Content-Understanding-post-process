@@ -816,14 +816,13 @@ def create_segments_visualization(merged_segments_path: str, output_path: str) -
         merged_color = '#0078d4'        # Brand primary
         overlap_color = '#d13438'       # Danger foreground
         unmerged_color = '#8661c5'      # Purple variant
-        final_color = '#ffb900'         # Warning/amber
+        final_color = '#107c10'         # Dark green
         text_color = '#242424'          # Neutral foreground 1
         grid_color = '#e1dfdd'          # Neutral stroke 2
         border_color = '#d1d1d1'        # Neutral stroke 1
         
-        # Height settings
+        # Height settings - all segments same height
         bar_height = 0.5
-        overlap_height = 0.35
         
         # Plot merged segments
         for seg in merged_segments:
@@ -860,8 +859,8 @@ def create_segments_visualization(merged_segments_path: str, output_path: str) -
                         
                         # Draw overlapping segment
                         overlap_rect = patches.Rectangle(
-                            (overlap_start, y_positions['overlapping'] - overlap_height/2),
-                            overlap_duration, overlap_height,
+                            (overlap_start, y_positions['overlapping'] - bar_height/2),
+                            overlap_duration, bar_height,
                             linewidth=1, edgecolor=border_color, facecolor=overlap_color,
                             alpha=0.8
                         )
@@ -879,7 +878,7 @@ def create_segments_visualization(merged_segments_path: str, output_path: str) -
                         # Add connection line
                         connection_x = [start + duration/2, overlap_start + overlap_duration/2]
                         connection_y = [y_positions['merged'] - bar_height/2, 
-                                      y_positions['overlapping'] + overlap_height/2]
+                                      y_positions['overlapping'] + bar_height/2]
                         ax.plot(connection_x, connection_y, color=brand_secondary, 
                                alpha=0.5, linestyle='--', linewidth=1)
         
@@ -928,7 +927,7 @@ def create_segments_visualization(merged_segments_path: str, output_path: str) -
                         selling_point = selling_point[:22] + '...'
                     if selling_point and duration > 0.5:
                         ax.text(start + duration/2, y_positions['final'], selling_point,
-                               ha='center', va='center', fontsize=8, color=text_color,
+                               ha='center', va='center', fontsize=8, color='white',
                                weight='500', family='Segoe UI')
         
         # Configure plot with Fluent UI styling
