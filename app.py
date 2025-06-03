@@ -786,22 +786,22 @@ def create_segments_visualization(merged_segments_path: str, output_path: str) -
         if has_unmerged:
             fig_height = 10
             y_positions = {
-                'merged': 4, 
-                'overlapping': 3.2,
+                'overlapping': 4,    # Original Segments (moved to top)
+                'merged': 3.2,       # Selling Point Segments
                 'unmerged': 2.2, 
                 'final': 1.2
             }
-            y_labels = ['Final Segments', 'Unmerged Segments', 'Overlapping Segments', 'Merged Segments']
+            y_labels = ['Final Segments', 'Unmerged Segments', 'Selling Point Segments', 'Original Segments']
             y_ticks = [1.2, 2.2, 3.2, 4]
             y_lim = (0.8, 4.5)
         else:
             fig_height = 8
             y_positions = {
-                'merged': 3.2, 
-                'overlapping': 2.4,
+                'overlapping': 3.2,  # Original Segments (moved to top)
+                'merged': 2.4,       # Selling Point Segments
                 'final': 1.2
             }
-            y_labels = ['Final Segments', 'Overlapping Segments', 'Merged Segments']
+            y_labels = ['Final Segments', 'Selling Point Segments', 'Original Segments']
             y_ticks = [1.2, 2.4, 3.2]
             y_lim = (0.8, 3.7)
         
@@ -824,7 +824,32 @@ def create_segments_visualization(merged_segments_path: str, output_path: str) -
         # Height settings - all segments same height
         bar_height = 0.5
         
-        # Plot merged segments
+        # Plot overlapping segments first (Original Segments - now at top)
+        for seg in merged_segments:
+            for i, overlap in enumerate(seg.get('overlapping_segments', [])):
+                if overlap.get('startTimeMs') is not None and overlap.get('endTimeMs') is not None:
+                    overlap_start = overlap['startTimeMs'] / 1000
+                    overlap_duration = (overlap['endTimeMs'] - overlap['startTimeMs']) / 1000
+                    
+                    # Draw overlapping segment
+                    overlap_rect = patches.Rectangle(
+                        (overlap_start, y_positions['overlapping'] - bar_height/2),
+                        overlap_duration, bar_height,
+                        linewidth=1, edgecolor=border_color, facecolor=overlap_color,
+                        alpha=0.8
+                    )
+                    ax.add_patch(overlap_rect)
+                    
+                    # Add segment label if duration is sufficient
+                    if overlap_duration > 0.4:
+                        overlap_text = overlap.get('sellingPoint', f'Segment {i+1}')
+                        if len(overlap_text) > 12:
+                            overlap_text = overlap_text[:9] + '...'
+                        ax.text(overlap_start + overlap_duration/2, y_positions['overlapping'], 
+                               overlap_text, ha='center', va='center', fontsize=8, 
+                               color='white', weight='500', family='Segoe UI')
+        
+        # Plot merged segments (Selling Point Segments - now second)
         for seg in merged_segments:
             if seg.get('startTimeMs') is not None and seg.get('endTimeMs') is not None:
                 start = seg['startTimeMs'] / 1000
@@ -851,36 +876,23 @@ def create_segments_visualization(merged_segments_path: str, output_path: str) -
                                    facecolor=merged_color, alpha=0.95, 
                                    edgecolor='none'))
                 
-                # Plot overlapping segments
-                for i, overlap in enumerate(seg.get('overlapping_segments', [])):
+                # Add arrows from original segments to selling point segments
+                for overlap in seg.get('overlapping_segments', []):
                     if overlap.get('startTimeMs') is not None and overlap.get('endTimeMs') is not None:
                         overlap_start = overlap['startTimeMs'] / 1000
                         overlap_duration = (overlap['endTimeMs'] - overlap['startTimeMs']) / 1000
                         
-                        # Draw overlapping segment
-                        overlap_rect = patches.Rectangle(
-                            (overlap_start, y_positions['overlapping'] - bar_height/2),
-                            overlap_duration, bar_height,
-                            linewidth=1, edgecolor=border_color, facecolor=overlap_color,
-                            alpha=0.8
-                        )
-                        ax.add_patch(overlap_rect)
+                        # Add arrow from original segment to selling point segment
+                        arrow_start_x = overlap_start + overlap_duration/2
+                        arrow_start_y = y_positions['overlapping'] - bar_height/2
+                        arrow_end_x = start + duration/2
+                        arrow_end_y = y_positions['merged'] + bar_height/2
                         
-                        # Add segment label if duration is sufficient
-                        if overlap_duration > 0.4:
-                            overlap_text = overlap.get('sellingPoint', f'Overlap {i+1}')
-                            if len(overlap_text) > 12:
-                                overlap_text = overlap_text[:9] + '...'
-                            ax.text(overlap_start + overlap_duration/2, y_positions['overlapping'], 
-                                   overlap_text, ha='center', va='center', fontsize=8, 
-                                   color='white', weight='500', family='Segoe UI')
-                        
-                        # Add connection line
-                        connection_x = [start + duration/2, overlap_start + overlap_duration/2]
-                        connection_y = [y_positions['merged'] - bar_height/2, 
-                                      y_positions['overlapping'] + bar_height/2]
-                        ax.plot(connection_x, connection_y, color=brand_secondary, 
-                               alpha=0.5, linestyle='--', linewidth=1)
+                        # Draw arrow using annotate with straight line
+                        ax.annotate('', xy=(arrow_end_x, arrow_end_y), 
+                                   xytext=(arrow_start_x, arrow_start_y),
+                                   arrowprops=dict(arrowstyle='->', color=brand_secondary, 
+                                                 alpha=0.6, linewidth=1.5))
         
         # Plot unmerged segments (only if they exist)
         if has_unmerged:
@@ -959,8 +971,8 @@ def create_segments_visualization(merged_segments_path: str, output_path: str) -
         
         # Create legend elements based on what exists
         legend_elements = [
-            patches.Patch(facecolor=merged_color, alpha=0.9, label='Merged Segments'),
-            patches.Patch(facecolor=overlap_color, alpha=0.8, label='Overlapping Segments')
+            patches.Patch(facecolor=overlap_color, alpha=0.8, label='Original Segments'),
+            patches.Patch(facecolor=merged_color, alpha=0.9, label='Selling Point Segments')
         ]
         if has_unmerged:
             legend_elements.append(patches.Patch(facecolor=unmerged_color, alpha=0.8, label='Unmerged Segments'))
@@ -991,7 +1003,7 @@ def create_segments_visualization(merged_segments_path: str, output_path: str) -
         
         # Add statistics box with Fluent UI card styling - position in top left
         total_segments = len(merged_segments) + len(unmerged_segments)
-        stats_text = f"Total Segments: {total_segments}\nMerged: {len(merged_segments)} | Unmerged: {len(unmerged_segments)}"
+        stats_text = f"Total Segments: {total_segments}\nSelling Points: {len(merged_segments)} | Unmerged: {len(unmerged_segments)}"
         if has_final:
             stats_text += f" | Final: {len(final_segments)}"
         
