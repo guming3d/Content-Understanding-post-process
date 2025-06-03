@@ -974,11 +974,20 @@ def create_segments_visualization(merged_segments_path: str, output_path: str) -
                          framealpha=0.95, shadow=True)
         legend.get_frame().set_linewidth(1)
         
-        # Add time markers with subtle styling
-        time_interval = max(1, int(max_time_seconds / 12))
-        for t in range(0, int(max_time_seconds) + 1, time_interval):
-            if t > 0:  # Skip zero
-                ax.axvline(x=t, color=grid_color, alpha=0.4, linestyle=':', linewidth=0.8)
+        # Add vertical lines at final segment start/end times
+        if has_final:
+            # Collect unique timestamps from final segments
+            final_timestamps = set()
+            for seg in final_segments:
+                if seg.get('startTimeMs') is not None:
+                    final_timestamps.add(seg['startTimeMs'] / 1000)
+                if seg.get('endTimeMs') is not None:
+                    final_timestamps.add(seg['endTimeMs'] / 1000)
+            
+            # Draw vertical lines at each final segment timestamp
+            for timestamp in sorted(final_timestamps):
+                if timestamp > 0:  # Skip zero
+                    ax.axvline(x=timestamp, color='#808080', alpha=0.4, linestyle=':', linewidth=1.2, zorder=1)
         
         # Add statistics box with Fluent UI card styling - position in top left
         total_segments = len(merged_segments) + len(unmerged_segments)
